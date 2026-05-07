@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bakhtlilar
 
-## Getting Started
+Telegram Mini App MVP — верифицированные серьёзные знакомства в Узбекистане.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 16** (App Router, Turbopack)
+- **Supabase** — Postgres, Storage, ручная модерация
+- **Telegram Mini App SDK** (`@telegram-apps/sdk-react`)
+- **next-intl** — ru / uz
+- **Tailwind v4** + кастомные компоненты
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Деплой: Vercel.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Документация
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `docs/state-machine.md` — единый source-of-truth для роутинга, статусов, доступов. Перед добавлением нового экрана читай этот файл.
 
-## Learn More
+## Локальный запуск
 
-To learn more about Next.js, take a look at the following resources:
+1. `cp .env.example .env.local` (или открой существующий `.env.local`)
+2. Скопируй `service_role` ключ из Supabase Dashboard → API Keys → `secret` и вставь в `SUPABASE_SERVICE_ROLE_KEY`
+3. (опционально) укажи `TELEGRAM_BOT_TOKEN` и выключи `DEV_BYPASS_TG`. В dev-режиме `DEV_BYPASS_TG=1` создаёт фейкового пользователя при первом открытии — приложение работает в обычном браузере.
+4. `pnpm dev` → http://localhost:3000 (редирект на `/ru` или `/uz`)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## OTP в dev
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`SMS_PROVIDER=mock` — реальный код пишется в console.log, а код `123456` всегда принимается.
 
-## Deploy on Vercel
+## Что готово
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- 25 экранов онбординга (1–25), все шаги двигают `user.onboarding_step`.
+- State machine с явным `nextScreenFor(user)`; при открытии `/` — редирект на нужный экран.
+- Welcome → Language → Security → Phone → OTP — формы и server actions реализованы.
+- Document + Liveness — реальная загрузка в Supabase Storage (private bucket `documents`).
+- Moderation — submitted / pending / rejected / approved.
+- Profile basic → about — заглушки (`StubScreen`), state двигают; preview — реальный.
+- Quiz intro / questions / result — заглушки + финальный переход в `active`.
+- i18n на ru + uz.
+- Audit log: `user_state_transitions` записывается на каждый переход.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## TODO (после первого коммита)
+
+- Реальные формы анкеты (8 экранов профиля) с Zod-валидацией.
+- 12 вопросов квиза + scoring → `quiz_results`.
+- Реальная Telegram initData валидация (с `BOT_TOKEN`).
+- Реальный SMS-провайдер (Eskiz / Playmobile).
+- Админка модерации.
+- RLS-политики на таблицы.
+- Активный продукт: рекомендации, запросы, чаты.
+
+## Главное правило
+
+> Без OTP — нет паспорта. Без паспорта — нет анкеты. Без модерации — нет рекомендаций. Без квиза — нет matching. Без взаимного согласия — нет чата.
+
+См. `docs/state-machine.md`, раздел 7.
