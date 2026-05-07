@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "boazkjnkzwsjaixwyoht.supabase.co" },
+      { protocol: "https", hostname: "fdehbwckmhqgotikpzyj.supabase.co" },
     ],
   },
 };

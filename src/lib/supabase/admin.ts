@@ -9,7 +9,7 @@ function build(): SupabaseClient {
   if (!url) throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set");
   if (!key || key === "PASTE_SERVICE_ROLE_KEY_HERE" || key === "stub_for_build") {
     throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is not set — copy from https://supabase.com/dashboard/project/boazkjnkzwsjaixwyoht/settings/api-keys (secret) and add to env",
+      "SUPABASE_SERVICE_ROLE_KEY is not set — copy from https://supabase.com/dashboard/project/fdehbwckmhqgotikpzyj/settings/api-keys (secret) and add to env",
     );
   }
   return createClient(url, key, {
