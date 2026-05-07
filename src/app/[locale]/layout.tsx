@@ -21,7 +21,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale}>
-      <body className="min-h-dvh bg-neutral-50 text-neutral-900 antialiased">
+      <body className="min-h-dvh bg-[--color-cream] text-[--color-ink] antialiased">
         <NextIntlClientProvider>
           <div className="mx-auto flex min-h-dvh max-w-md flex-col">
             {children}

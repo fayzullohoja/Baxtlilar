@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Brand palette — see docs/state-machine.md companion brief.
+     Naming uses 'brand', 'cream', 'blush', 'plum', 'ink' so we don't
+     collide with Tailwind's default pink/rose scales. */
+
+  --color-cream: #fff9f8;
+  --color-cream-2: #fffbf7;
+  --color-card: #ffffff;
+
+  --color-blush: #fff1f4;
+  --color-blush-soft: #fff6f8;
+
+  --color-brand: #ff6f91;
+  --color-brand-soft: #f76f8e;
+  --color-brand-deep: #d94f73;
+  --color-brand-border: #ffd2dc;
+
+  --color-plum: #4a2c35;
+  --color-plum-soft: #6e464f;
+  --color-plum-mute: #8c6770;
+
+  --color-ink: #2e2e2e;
+  --color-ink-2: #6b5f63;
+  --color-ink-muted: #9b8c90;
+
+  --color-line: #ffe5ea;
+  --color-line-soft: #f5e6e9;
+
+  --color-success: #5c9b7a;
+  --color-success-bg: #e8f4ee;
+  --color-warn: #c2864f;
+  --color-warn-bg: #fbefe0;
+  --color-danger: #c8475d;
+  --color-danger-bg: #fbe8ec;
+
+  --radius-sm: 0.75rem;
+  --radius: 1rem;
+  --radius-md: 1.25rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2rem;
+
+  --shadow-soft: 0 4px 16px rgba(74, 44, 53, 0.06);
+  --shadow-card: 0 8px 24px -8px rgba(74, 44, 53, 0.08);
+  --shadow-lift: 0 16px 40px -16px rgba(74, 44, 53, 0.16);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* nicer focus ring on brand inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-brand) !important;
+  box-shadow: 0 0 0 4px rgba(255, 111, 145, 0.15);
+}
+
+/* selection in brand color */
+::selection {
+  background: var(--color-blush);
+  color: var(--color-plum);
 }

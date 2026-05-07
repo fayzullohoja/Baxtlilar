@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenBody, ScreenFooter } from "@/components/ui/screen";
+import { Logo } from "@/components/brand/logo";
 import { bootstrapFromTelegram } from "@/lib/auth/bootstrap";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { nextScreenFor } from "@/lib/state-machine/router";
@@ -20,9 +21,9 @@ export default async function WelcomePage({
 
   const errMsg =
     error === "no_tg"
-      ? "Открой эту страницу через Telegram (через бота @baxtlilar_uz_bot), либо включи DEV_BYPASS_TG=1 в env."
+      ? "Откройте эту страницу через Telegram (бот @baxtlilar_uz_bot), или включите DEV_BYPASS_TG=1."
       : error === "bootstrap"
-        ? "Не удалось создать пользователя. Попробуй ещё раз или проверь логи."
+        ? "Не удалось создать пользователя. Попробуйте ещё раз."
         : null;
 
   async function start(initData?: string) {
@@ -30,8 +31,6 @@ export default async function WelcomePage({
     try {
       await bootstrapFromTelegram(initData);
     } catch (e) {
-      // Most common: opened in plain browser without Telegram initData and
-      // DEV_BYPASS_TG=0. Redirect with a hint instead of bubbling a 500.
       const reason =
         e instanceof Error && e.message.includes("Invalid Telegram") ? "no_tg" : "bootstrap";
       redirect(`/${locale}/onboarding/welcome?error=${reason}`);
@@ -44,20 +43,50 @@ export default async function WelcomePage({
   return (
     <Screen>
       <ScreenBody>
-        <div className="mt-8 flex flex-col items-center text-center">
-          <h1 className="text-3xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="mt-3 text-base text-neutral-600">{t("subtitle")}</p>
-          <p className="mt-6 text-sm text-neutral-700">{t("body")}</p>
+        <div className="mt-12 flex flex-col items-center text-center">
+          <span style={{ color: "var(--color-brand)" }}>
+            <Logo size={92} />
+          </span>
+          <h1 className="mt-7 text-[34px] font-bold leading-tight tracking-tight text-[--color-plum]">
+            {t("title")}
+          </h1>
+          <p className="mt-3 text-[16px] leading-relaxed text-[--color-ink-2]">
+            {t("subtitle")}
+          </p>
+          <p className="mt-8 max-w-[300px] text-[14px] leading-relaxed text-[--color-plum-mute]">
+            {t("body")}
+          </p>
+          <ul className="mt-8 flex w-full flex-col gap-2.5">
+            {[
+              "Проверенные анкеты",
+              "Уважительное общение",
+              "Серьёзные намерения",
+            ].map((s) => (
+              <li
+                key={s}
+                className="flex items-center gap-3 rounded-2xl bg-[--color-blush] px-4 py-3 text-[14px] text-[--color-plum]"
+              >
+                <span
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold text-white"
+                  style={{ background: "var(--color-brand)" }}
+                  aria-hidden
+                >
+                  ✓
+                </span>
+                {s}
+              </li>
+            ))}
+          </ul>
         </div>
       </ScreenBody>
       <ScreenFooter>
         <WelcomeBootstrap startAction={start} startLabel={t("start")} />
         {errMsg ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-center text-xs text-amber-900">
+          <p className="rounded-2xl border border-[--color-warn] bg-[--color-warn-bg] p-3 text-center text-xs leading-relaxed text-[--color-warn]">
             {errMsg}
           </p>
         ) : null}
-        <p className="mt-4 text-center text-xs leading-relaxed text-neutral-500">
+        <p className="mt-2 text-center text-[11px] leading-relaxed text-[--color-ink-muted]">
           {t("footer")}
         </p>
       </ScreenFooter>
