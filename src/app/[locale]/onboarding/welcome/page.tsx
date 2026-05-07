@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { Screen, ScreenHeader, ScreenBody, ScreenFooter, PrimaryButton, SecondaryButton } from "@/components/ui/screen";
+import { Screen, ScreenBody, ScreenFooter } from "@/components/ui/screen";
 import { bootstrapFromTelegram } from "@/lib/auth/bootstrap";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { nextScreenFor } from "@/lib/state-machine/router";

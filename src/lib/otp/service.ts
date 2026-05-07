@@ -3,7 +3,6 @@ import crypto from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 const OTP_TTL_SECONDS = 5 * 60;
-const OTP_RESEND_COOLDOWN_SECONDS = 60;
 
 function hashCode(code: string): string {
   return crypto.createHash("sha256").update(code).digest("hex");

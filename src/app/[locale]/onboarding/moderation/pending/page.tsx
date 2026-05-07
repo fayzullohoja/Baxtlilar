@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { Screen, ScreenHeader, ScreenBody, ScreenFooter, SecondaryButton, PrimaryButton } from "@/components/ui/screen";
+import { Screen, ScreenHeader, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
 import { requireUser } from "@/lib/auth/current-user";
 import { nextScreenFor } from "@/lib/state-machine/router";
 
@@ -13,7 +13,7 @@ export default async function ModerationPendingPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("moderation");
-  const user = await requireUser(locale);
+  await requireUser(locale);
 
   async function refresh() {
     "use server";

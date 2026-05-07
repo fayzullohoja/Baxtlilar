@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/screen";
 
 export function QuizQuestionForm({
-  questionId,
   options,
   multi,
   submitAction,
