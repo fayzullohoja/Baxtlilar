@@ -13,7 +13,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const COLUMNS = [
+const CORE_COLUMNS = [
   "id",
   "telegram_id",
   "telegram_username",
@@ -25,10 +25,12 @@ const COLUMNS = [
   "profile_completion",
   "quiz_completion",
   "created_at",
-  "last_active_at",
   "blocked_at",
   "blocked_reason",
 ];
+
+// Optional columns added by later migrations — may not exist on some envs
+const OPTIONAL_COLUMNS = ["last_active_at"];
 
 function escapeCsv(v: unknown): string {
   if (v == null) return "";
@@ -42,19 +44,30 @@ export async function GET() {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
-  const { data: rows, error } = await supabaseAdmin
+  // Try with all columns first; if a column doesn't exist (migration not
+  // applied), drop the optional ones and retry with just CORE_COLUMNS.
+  let columns = [...CORE_COLUMNS, ...OPTIONAL_COLUMNS];
+  let { data: rows, error } = await supabaseAdmin
     .from("users")
-    .select(COLUMNS.join(", "))
+    .select(columns.join(", "))
     .order("created_at", { ascending: false });
+
+  if (error && error.message.includes("does not exist")) {
+    columns = CORE_COLUMNS;
+    ({ data: rows, error } = await supabaseAdmin
+      .from("users")
+      .select(columns.join(", "))
+      .order("created_at", { ascending: false }));
+  }
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   }
 
-  const lines = [COLUMNS.join(",")];
+  const lines = [columns.join(",")];
   for (const row of rows ?? []) {
     const r = row as unknown as Record<string, unknown>;
-    lines.push(COLUMNS.map((c) => escapeCsv(r[c])).join(","));
+    lines.push(columns.map((c) => escapeCsv(r[c])).join(","));
   }
   const csv = lines.join("\n");
 

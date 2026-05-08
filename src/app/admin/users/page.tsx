@@ -58,38 +58,50 @@ export default async function UsersListPage({
   );
   const totalUsers = allRows?.length ?? 0;
 
-  // Filtered query
-  let q = supabaseAdmin
-    .from("users")
-    .select(
-      "id, telegram_id, telegram_username, telegram_first_name, phone_number, language, lifecycle_state, verification_status, created_at, last_active_at",
-      { count: "exact" },
-    );
+  // Build the SELECT with optional last_active_at column. If migration hasn't
+  // been applied yet, fall back to the core columns without it.
+  const baseSelect =
+    "id, telegram_id, telegram_username, telegram_first_name, phone_number, language, lifecycle_state, verification_status, created_at";
 
-  if (lifecycle !== "all") {
-    q = q.eq("lifecycle_state", lifecycle);
-  }
-
-  if (langFilter === "ru" || langFilter === "uz") {
-    q = q.eq("language", langFilter);
-  }
-
-  if (search) {
-    const safe = search.replace(/[%,]/g, " ");
-    if (/^\d+$/.test(safe)) {
-      q = q.or(`telegram_id.eq.${safe},phone_number.ilike.%${safe}%`);
-    } else {
-      q = q.or(
-        `telegram_first_name.ilike.%${safe}%,telegram_username.ilike.%${safe}%,phone_number.ilike.%${safe}%`,
-      );
+  function buildQuery(includeLastActive: boolean) {
+    const select = includeLastActive ? `${baseSelect}, last_active_at` : baseSelect;
+    let q = supabaseAdmin.from("users").select(select, { count: "exact" });
+    if (lifecycle !== "all") q = q.eq("lifecycle_state", lifecycle);
+    if (langFilter === "ru" || langFilter === "uz") q = q.eq("language", langFilter);
+    if (search) {
+      const safe = search.replace(/[%,]/g, " ");
+      if (/^\d+$/.test(safe)) {
+        q = q.or(`telegram_id.eq.${safe},phone_number.ilike.%${safe}%`);
+      } else {
+        q = q.or(
+          `telegram_first_name.ilike.%${safe}%,telegram_username.ilike.%${safe}%,phone_number.ilike.%${safe}%`,
+        );
+      }
     }
+    return q.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1);
   }
 
-  const { data: rows, count } = await q
-    .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1);
+  let result = await buildQuery(true);
+  if (result.error && result.error.message.includes("does not exist")) {
+    result = await buildQuery(false);
+  }
+  const { data: rows, count } = result;
 
-  const items = rows ?? [];
+  // Supabase TS can't infer the union when select string is built dynamically;
+  // narrow to the row shape we actually use below.
+  type UserRow = {
+    id: string;
+    telegram_id: number;
+    telegram_username: string | null;
+    telegram_first_name: string | null;
+    phone_number: string | null;
+    language: string | null;
+    lifecycle_state: string;
+    verification_status: string;
+    created_at: string;
+    last_active_at?: string | null;
+  };
+  const items: UserRow[] = (rows as unknown as UserRow[]) ?? [];
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
