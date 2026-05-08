@@ -2,38 +2,43 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { AdminShell, StatTile, StatusBadge } from "@/components/admin/shell";
+import { AdminShell, StatusBadge } from "@/components/admin/shell";
 
 const PAGE_SIZE = 50;
 
-const STATUS_FILTERS = [
-  { key: "pending_review", label: "В очереди", tone: "warn" as const },
-  { key: "approved", label: "Одобренные", tone: "success" as const },
-  { key: "rejected", label: "Отклонённые", tone: "danger" as const },
-  { key: "all", label: "Все", tone: "default" as const },
+const LIFECYCLE_FILTERS = [
+  { key: "all", label: "Все" },
+  { key: "onboarding", label: "Онбординг" },
+  { key: "active", label: "Активные" },
+  { key: "paused", label: "На паузе" },
+  { key: "blocked", label: "Заблокированы" },
+  { key: "deleted", label: "Удалены" },
 ];
 
-const STATUS_BADGE: Record<string, { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }> = {
-  pending_review: { label: "На проверку", tone: "warn" },
-  approved: { label: "Одобрен", tone: "success" },
-  rejected: { label: "Отклонён", tone: "danger" },
-  revoked: { label: "Отозван", tone: "danger" },
+const LIFECYCLE_BADGE: Record<
+  string,
+  { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }
+> = {
+  onboarding: { label: "Онбординг", tone: "info" },
+  active: { label: "Активный", tone: "success" },
+  paused: { label: "Пауза", tone: "warn" },
+  blocked: { label: "Заблокирован", tone: "danger" },
+  deleted: { label: "Удалён", tone: "default" },
+};
+
+const VERIFICATION_BADGE: Record<
+  string,
+  { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }
+> = {
+  not_started: { label: "—", tone: "default" },
   phone_verified: { label: "Телефон", tone: "info" },
   documents_uploaded: { label: "Паспорт", tone: "info" },
   liveness_uploaded: { label: "Selfie", tone: "info" },
-  not_started: { label: "Не начал", tone: "default" },
+  pending_review: { label: "Pending", tone: "warn" },
+  approved: { label: "✓ Одобрен", tone: "success" },
+  rejected: { label: "Отклонён", tone: "danger" },
+  revoked: { label: "Отозван", tone: "danger" },
 };
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60_000);
-  if (m < 1) return "только что";
-  if (m < 60) return `${m} мин`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h} ч`;
-  const d = Math.floor(h / 24);
-  return `${d} д`;
-}
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("ru-RU", {
@@ -44,62 +49,59 @@ function formatDateTime(iso: string): string {
   });
 }
 
-export default async function ModerationListPage({
+export default async function UsersListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; q?: string; page?: string }>;
+  searchParams: Promise<{ lifecycle?: string; q?: string; page?: string }>;
 }) {
   if (!(await isAdmin())) redirect("/admin/login");
 
   const sp = await searchParams;
-  const statusFilter = sp.status ?? "pending_review";
+  const lifecycle = sp.lifecycle ?? "all";
   const search = (sp.q ?? "").trim();
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  // Counts for stats
-  const { data: stats } = await supabaseAdmin
+  // Counts per lifecycle
+  const { data: allRows } = await supabaseAdmin
     .from("users")
-    .select("verification_status");
-  const counts = (stats ?? []).reduce<Record<string, number>>((acc, u) => {
-    acc[u.verification_status] = (acc[u.verification_status] ?? 0) + 1;
-    return acc;
-  }, {});
-  const totalUsers = stats?.length ?? 0;
+    .select("lifecycle_state");
+  const lifecycleCounts = (allRows ?? []).reduce<Record<string, number>>(
+    (acc, u) => {
+      acc[u.lifecycle_state] = (acc[u.lifecycle_state] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
+  const totalUsers = allRows?.length ?? 0;
 
-  // Build filtered query
+  // Filtered query
   let q = supabaseAdmin
     .from("users")
     .select(
-      "id, telegram_id, telegram_username, telegram_first_name, phone_number, language, verification_status, onboarding_step, created_at",
+      "id, telegram_id, telegram_username, telegram_first_name, phone_number, language, lifecycle_state, verification_status, created_at",
       { count: "exact" },
     );
 
-  if (statusFilter !== "all") {
-    q = q.eq("verification_status", statusFilter);
+  if (lifecycle !== "all") {
+    q = q.eq("lifecycle_state", lifecycle);
   }
 
   if (search) {
-    const escaped = search.replace(/[%,]/g, " ");
-    // Numeric → telegram_id; else → name/username/phone
-    if (/^\d+$/.test(escaped)) {
-      q = q.or(
-        `telegram_id.eq.${escaped},phone_number.ilike.%${escaped}%`,
-      );
+    const safe = search.replace(/[%,]/g, " ");
+    if (/^\d+$/.test(safe)) {
+      q = q.or(`telegram_id.eq.${safe},phone_number.ilike.%${safe}%`);
     } else {
       q = q.or(
-        `telegram_first_name.ilike.%${escaped}%,telegram_username.ilike.%${escaped}%,phone_number.ilike.%${escaped}%`,
+        `telegram_first_name.ilike.%${safe}%,telegram_username.ilike.%${safe}%,phone_number.ilike.%${safe}%`,
       );
     }
   }
 
-  // Order: pending = oldest first (FIFO); other statuses = newest first
-  q =
-    statusFilter === "pending_review"
-      ? q.order("created_at", { ascending: true })
-      : q.order("created_at", { ascending: false });
+  const { data: rows, count } = await q
+    .order("created_at", { ascending: false })
+    .range(offset, offset + PAGE_SIZE - 1);
 
-  const { data: rows, count } = await q.range(offset, offset + PAGE_SIZE - 1);
   const items = rows ?? [];
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -110,49 +112,40 @@ export default async function ModerationListPage({
     redirect("/admin/login");
   }
 
-  function buildHref(opts: { status?: string; q?: string; page?: number }) {
+  function buildHref(opts: { lifecycle?: string; q?: string; page?: number }) {
     const p = new URLSearchParams();
-    const newStatus = opts.status ?? statusFilter;
-    if (newStatus !== "pending_review") p.set("status", newStatus);
+    const newLife = opts.lifecycle ?? lifecycle;
+    if (newLife !== "all") p.set("lifecycle", newLife);
     const newSearch = opts.q ?? search;
     if (newSearch) p.set("q", newSearch);
     if (opts.page && opts.page > 1) p.set("page", String(opts.page));
     const qs = p.toString();
-    return `/admin/moderation${qs ? `?${qs}` : ""}`;
+    return `/admin/users${qs ? `?${qs}` : ""}`;
   }
 
   return (
     <AdminShell
-      title="Модерация"
-      subtitle="Проверьте паспорт и selfie. Одобряйте, если данные читаются и совпадают."
+      title="Все пользователи"
+      subtitle="Полный список с фильтрами по жизненному циклу. Кликните по строке, чтобы открыть карточку."
       onLogout={logout}
-      activeNav="/admin/moderation"
+      activeNav="/admin/users"
     >
-      {/* Stats */}
-      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="В очереди" value={counts.pending_review ?? 0} tone="warn" />
-        <StatTile label="Одобрено" value={counts.approved ?? 0} tone="success" />
-        <StatTile label="Отклонено" value={counts.rejected ?? 0} tone="danger" />
-        <StatTile label="Всего юзеров" value={totalUsers} />
-      </section>
-
-      {/* Tabs + Search */}
+      {/* Filter tabs */}
       <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
         <div className="flex flex-col gap-3 border-b border-[--admin-border] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Tabs */}
           <div
             role="tablist"
-            className="inline-flex items-center gap-1 rounded-lg p-1"
+            className="inline-flex flex-wrap items-center gap-1 rounded-lg p-1"
             style={{ backgroundColor: "var(--admin-surface-2)" }}
           >
-            {STATUS_FILTERS.map((f) => {
-              const active = statusFilter === f.key;
-              const count =
-                f.key === "all" ? totalUsers : counts[f.key] ?? 0;
+            {LIFECYCLE_FILTERS.map((f) => {
+              const active = lifecycle === f.key;
+              const cnt =
+                f.key === "all" ? totalUsers : lifecycleCounts[f.key] ?? 0;
               return (
                 <Link
                   key={f.key}
-                  href={buildHref({ status: f.key, page: 1 })}
+                  href={buildHref({ lifecycle: f.key, page: 1 })}
                   role="tab"
                   aria-selected={active}
                   className={
@@ -165,24 +158,18 @@ export default async function ModerationListPage({
                   {f.label}
                   <span
                     className="rounded-md px-1.5 text-[10px] font-semibold"
-                    style={{
-                      backgroundColor: active
-                        ? "var(--admin-surface-2)"
-                        : "transparent",
-                      color: "var(--admin-text-muted)",
-                    }}
+                    style={{ color: "var(--admin-text-muted)" }}
                   >
-                    {count}
+                    {cnt}
                   </span>
                 </Link>
               );
             })}
           </div>
 
-          {/* Search */}
-          <form className="flex items-center gap-2" action="/admin/moderation">
-            {statusFilter !== "pending_review" ? (
-              <input type="hidden" name="status" value={statusFilter} />
+          <form className="flex items-center gap-2" action="/admin/users">
+            {lifecycle !== "all" ? (
+              <input type="hidden" name="lifecycle" value={lifecycle} />
             ) : null}
             <div className="relative">
               <svg
@@ -213,43 +200,9 @@ export default async function ModerationListPage({
           </form>
         </div>
 
-        {/* Table or empty state */}
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-5 py-16 text-center">
-            <div
-              className="mb-3 flex h-12 w-12 items-center justify-center rounded-full"
-              style={
-                statusFilter === "pending_review"
-                  ? { backgroundColor: "var(--admin-success-bg)", color: "var(--admin-success)" }
-                  : { backgroundColor: "var(--admin-surface-2)", color: "var(--admin-text-muted)" }
-              }
-              aria-hidden
-            >
-              {statusFilter === "pending_review" ? (
-                <svg className="h-6 w-6" viewBox="0 0 20 20" fill="none">
-                  <path d="M5 10.5l3.5 3.5L15 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                <svg className="h-6 w-6" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="6" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M10 7v4M10 13h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              )}
-            </div>
-            <h3 className="text-base font-semibold text-[--admin-text]">
-              {search
-                ? "Никого не нашли"
-                : statusFilter === "pending_review"
-                  ? "Очередь пуста"
-                  : "Пока пусто"}
-            </h3>
-            <p className="mt-1 text-sm text-[--admin-text-2]">
-              {search
-                ? "Попробуйте другой запрос"
-                : statusFilter === "pending_review"
-                  ? "Все заявки обработаны"
-                  : "Заявки появятся здесь"}
-            </p>
+            <p className="text-sm text-[--admin-text-2]">Никого не нашли</p>
           </div>
         ) : (
           <>
@@ -257,12 +210,12 @@ export default async function ModerationListPage({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[--admin-border] bg-[--admin-surface-2] text-left text-[11px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
-                    <th className="px-5 py-2.5 font-semibold">Пользователь</th>
-                    <th className="hidden px-5 py-2.5 font-semibold sm:table-cell">Контакт</th>
-                    <th className="hidden px-5 py-2.5 font-semibold md:table-cell">Telegram</th>
-                    <th className="hidden px-5 py-2.5 font-semibold md:table-cell">Язык</th>
-                    <th className="px-5 py-2.5 font-semibold">Статус</th>
-                    <th className="px-5 py-2.5 text-right font-semibold">Подано</th>
+                    <th className="px-5 py-2.5">Пользователь</th>
+                    <th className="hidden px-5 py-2.5 sm:table-cell">Контакт</th>
+                    <th className="hidden px-5 py-2.5 md:table-cell">Telegram</th>
+                    <th className="px-5 py-2.5">Lifecycle</th>
+                    <th className="hidden px-5 py-2.5 lg:table-cell">Verification</th>
+                    <th className="px-5 py-2.5 text-right">Создан</th>
                     <th className="w-12 px-3 py-2.5"></th>
                   </tr>
                 </thead>
@@ -272,8 +225,16 @@ export default async function ModerationListPage({
                       .trim()
                       .slice(0, 1)
                       .toUpperCase();
-                    const badge =
-                      STATUS_BADGE[u.verification_status] ?? STATUS_BADGE.not_started;
+                    const lifecycleBadge =
+                      LIFECYCLE_BADGE[u.lifecycle_state] ?? {
+                        label: u.lifecycle_state,
+                        tone: "default" as const,
+                      };
+                    const verificationBadge =
+                      VERIFICATION_BADGE[u.verification_status] ?? {
+                        label: u.verification_status,
+                        tone: "default" as const,
+                      };
                     return (
                       <tr
                         key={u.id}
@@ -315,21 +276,19 @@ export default async function ModerationListPage({
                           ) : (
                             <span className="text-[--admin-text-muted]">—</span>
                           )}
-                          <span className="ml-1.5 font-mono text-[--admin-text-muted]">
-                            {String(u.telegram_id)}
-                          </span>
-                        </td>
-                        <td className="hidden px-5 py-3 text-xs uppercase text-[--admin-text-2] md:table-cell">
-                          {u.language ?? "—"}
                         </td>
                         <td className="px-5 py-3">
-                          <StatusBadge label={badge.label} tone={badge.tone} />
+                          <StatusBadge label={lifecycleBadge.label} tone={lifecycleBadge.tone} />
                         </td>
-                        <td className="px-5 py-3 text-right">
-                          <p className="text-sm text-[--admin-text]">{timeAgo(u.created_at)}</p>
-                          <p className="hidden text-[11px] text-[--admin-text-muted] sm:block">
-                            {formatDateTime(u.created_at)}
-                          </p>
+                        <td className="hidden px-5 py-3 lg:table-cell">
+                          <StatusBadge
+                            label={verificationBadge.label}
+                            tone={verificationBadge.tone}
+                            withDot={false}
+                          />
+                        </td>
+                        <td className="px-5 py-3 text-right text-xs text-[--admin-text-2]">
+                          {formatDateTime(u.created_at)}
                         </td>
                         <td className="px-3 py-3">
                           <Link
@@ -349,7 +308,6 @@ export default async function ModerationListPage({
               </table>
             </div>
 
-            {/* Pagination footer */}
             {totalPages > 1 ? (
               <div className="flex items-center justify-between border-t border-[--admin-border] bg-[--admin-surface-2] px-4 py-3 text-xs text-[--admin-text-2]">
                 <p>

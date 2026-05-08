@@ -13,6 +13,9 @@ type TransitionFields = Partial<{
   phone_verified: boolean;
   phone_verified_at: string;
   security_intro_seen: boolean;
+  blocked_at: string | null;
+  blocked_reason: string | null;
+  paused_at: string | null;
 }>;
 
 export async function transition(

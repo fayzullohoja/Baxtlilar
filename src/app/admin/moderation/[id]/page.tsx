@@ -3,6 +3,7 @@ import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
+import { RejectForm } from "./reject-form";
 
 async function signedDoc(path: string | null | undefined) {
   if (!path) return null;
@@ -117,6 +118,22 @@ export default async function ModerationDetailPage({
     redirect("/admin/moderation");
   }
 
+  async function ban() {
+    "use server";
+    await transition(
+      id,
+      {
+        lifecycle_state: "blocked",
+        verification_status: "revoked",
+        blocked_at: new Date().toISOString(),
+        blocked_reason: "moderator: подделка документов / нарушение правил",
+      },
+      "moderator banned user",
+      "admin",
+    );
+    redirect("/admin/moderation");
+  }
+
   const initial = (user.telegram_first_name ?? "?")
     .trim()
     .slice(0, 1)
@@ -140,6 +157,7 @@ export default async function ModerationDetailPage({
       ]}
       actions={<StatusBadge label={status.label} tone={status.tone} />}
       onLogout={logout}
+      activeNav="/admin/moderation"
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* LEFT: Documents */}
@@ -267,40 +285,53 @@ export default async function ModerationDetailPage({
                   />
                 </svg>
               </summary>
-              <form action={reject} className="flex flex-col gap-3 border-t border-[--admin-border] bg-[--admin-surface-2] px-4 py-4">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
-                    Что переснять
-                  </span>
-                  <select
-                    name="kind"
-                    className="h-9 rounded-md border border-[--admin-border] bg-white px-2.5 text-sm text-[--admin-text]"
-                  >
-                    <option value="passport">Только паспорт</option>
-                    <option value="selfie">Только selfie</option>
-                    <option value="both">Оба фото</option>
-                  </select>
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
-                    Причина для пользователя
-                  </span>
-                  <textarea
-                    name="reason"
-                    placeholder="Например: фото размыто, данные не читаются, selfie не совпадает с паспортом"
-                    className="min-h-[72px] resize-none rounded-md border border-[--admin-border] bg-white px-3 py-2 text-sm leading-relaxed text-[--admin-text] placeholder:text-[--admin-text-muted]"
-                    required
+              <RejectForm rejectAction={reject} />
+            </details>
+
+            {/* Ban — destructive escalation, separated from reject */}
+            <details className="group mt-3 overflow-hidden rounded-lg border border-[--admin-border]">
+              <summary className="flex cursor-pointer items-center justify-between px-4 py-2.5 text-xs font-semibold text-[--admin-text-2] [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
+                    <path d="M3.8 3.8l8.4 8.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                  Заблокировать пользователя
+                </span>
+                <svg
+                  className="h-3.5 w-3.5 transition group-open:rotate-180"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M4 6l4 4 4-4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
-                </label>
+                </svg>
+              </summary>
+              <form
+                action={ban}
+                className="flex flex-col gap-3 border-t border-[--admin-border] bg-[--admin-surface-2] px-4 py-4"
+              >
+                <p className="text-xs leading-relaxed text-[--admin-text-2]">
+                  Юзер потеряет доступ навсегда. Используйте для подделки
+                  документов, фрода, повторных нарушений. Telegram ID будет
+                  записан с пометкой о блокировке.
+                </p>
                 <button
                   type="submit"
                   className="inline-flex h-9 items-center justify-center rounded-md text-xs font-semibold text-white transition hover:brightness-110 active:brightness-95"
-                  style={{ backgroundColor: "var(--admin-danger)" }}
+                  style={{ backgroundColor: "var(--admin-text)" }}
                 >
-                  Отправить отклонение
+                  Подтвердить блокировку
                 </button>
               </form>
             </details>
+
           </section>
         </div>
       </div>

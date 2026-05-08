@@ -2,6 +2,13 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { Logo } from "@/components/brand/logo";
 
+const NAV_ITEMS = [
+  { href: "/admin/moderation", label: "Очередь", match: "/admin/moderation" },
+  { href: "/admin/users", label: "Все юзеры", match: "/admin/users" },
+  { href: "/admin/audit", label: "Журнал", match: "/admin/audit" },
+  { href: "/admin/stats", label: "Аналитика", match: "/admin/stats" },
+];
+
 export function AdminShell({
   children,
   title,
@@ -9,6 +16,7 @@ export function AdminShell({
   breadcrumb,
   actions,
   onLogout,
+  activeNav,
 }: {
   children: ReactNode;
   title: string;
@@ -16,32 +24,62 @@ export function AdminShell({
   breadcrumb?: { label: string; href: string }[];
   actions?: ReactNode;
   onLogout: () => Promise<void> | void;
+  /** Override which nav item shows as active (auto-detected from breadcrumb otherwise) */
+  activeNav?: string;
 }) {
+  // Auto-detect active nav from breadcrumb; falls back to first nav item
+  const detectedActive =
+    activeNav ??
+    breadcrumb?.find((b) => NAV_ITEMS.some((n) => b.href.startsWith(n.match)))?.href ??
+    NAV_ITEMS[0].href;
+
   return (
     <div className="admin-scope min-h-dvh bg-[--admin-bg] text-[--admin-text]">
       {/* Sticky topbar */}
       <header className="sticky top-0 z-20 border-b border-[--admin-border] bg-[--admin-surface]/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-5">
-          <Link
-            href="/admin/moderation"
-            className="flex items-center gap-2.5 text-[--admin-text]"
-          >
-            <span style={{ color: "var(--admin-accent)" }}>
-              <Logo size={22} />
-            </span>
-            <span className="text-[15px] font-semibold tracking-tight">
-              Bakhtlilar
-            </span>
-            <span
-              className="rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-              style={{
-                backgroundColor: "var(--admin-accent)",
-                color: "white",
-              }}
+          <div className="flex items-center gap-6">
+            <Link
+              href="/admin/moderation"
+              className="flex items-center gap-2.5 text-[--admin-text]"
             >
-              Admin
-            </span>
-          </Link>
+              <span style={{ color: "var(--admin-accent)" }}>
+                <Logo size={22} />
+              </span>
+              <span className="text-[15px] font-semibold tracking-tight">
+                Bakhtlilar
+              </span>
+              <span
+                className="rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{
+                  backgroundColor: "var(--admin-accent)",
+                  color: "white",
+                }}
+              >
+                Admin
+              </span>
+            </Link>
+
+            <nav className="hidden items-center gap-1 sm:flex">
+              {NAV_ITEMS.map((item) => {
+                const active = detectedActive.startsWith(item.match);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={
+                      "inline-flex h-8 items-center rounded-md px-3 text-xs font-medium transition " +
+                      (active
+                        ? "bg-[--admin-surface-2] text-[--admin-text]"
+                        : "text-[--admin-text-2] hover:bg-[--admin-row-hover] hover:text-[--admin-text]")
+                    }
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
 
           <form action={onLogout}>
             <button
@@ -61,6 +99,27 @@ export function AdminShell({
             </button>
           </form>
         </div>
+
+        {/* Mobile nav row */}
+        <nav className="flex items-center gap-1 overflow-x-auto border-t border-[--admin-border] px-4 py-2 sm:hidden">
+          {NAV_ITEMS.map((item) => {
+            const active = detectedActive.startsWith(item.match);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={
+                  "inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-xs font-medium " +
+                  (active
+                    ? "bg-[--admin-surface-2] text-[--admin-text]"
+                    : "text-[--admin-text-2]")
+                }
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </header>
 
       {/* Page header */}
