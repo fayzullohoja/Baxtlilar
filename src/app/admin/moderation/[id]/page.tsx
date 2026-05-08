@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { isAdmin } from "@/lib/admin/guard";
+import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
-import { LogoLockup } from "@/components/brand/logo";
+import { AdminShell, StatusBadge } from "@/components/admin/shell";
 
 async function signedDoc(path: string | null | undefined) {
   if (!path) return null;
@@ -13,16 +12,30 @@ async function signedDoc(path: string | null | undefined) {
   return data?.signedUrl ?? null;
 }
 
-const STATUS_LABELS: Record<string, { label: string; tone: "warn" | "success" | "danger" | "neutral" }> = {
-  not_started: { label: "не начата", tone: "neutral" },
-  phone_verified: { label: "телефон подтверждён", tone: "neutral" },
-  documents_uploaded: { label: "паспорт загружен", tone: "neutral" },
-  liveness_uploaded: { label: "selfie загружено", tone: "neutral" },
+const STATUS_MAP: Record<
+  string,
+  { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }
+> = {
+  not_started: { label: "не начата", tone: "default" },
+  phone_verified: { label: "телефон подтверждён", tone: "info" },
+  documents_uploaded: { label: "паспорт загружен", tone: "info" },
+  liveness_uploaded: { label: "selfie загружено", tone: "info" },
   pending_review: { label: "на проверке", tone: "warn" },
   approved: { label: "одобрено", tone: "success" },
   rejected: { label: "отклонено", tone: "danger" },
   revoked: { label: "отозвано", tone: "danger" },
 };
+
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("ru-RU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default async function ModerationDetailPage({
   params,
@@ -41,13 +54,21 @@ export default async function ModerationDetailPage({
 
   const { data: doc } = await supabaseAdmin
     .from("user_documents")
-    .select("passport_path, passport_uploaded_at, selfie_path, selfie_uploaded_at, submitted_at, rejection_reason")
+    .select(
+      "passport_path, passport_uploaded_at, selfie_path, selfie_uploaded_at, submitted_at, rejection_reason, rejection_kind",
+    )
     .eq("user_id", id)
     .maybeSingle();
 
   const passportUrl = await signedDoc(doc?.passport_path);
   const selfieUrl = await signedDoc(doc?.selfie_path);
-  const status = STATUS_LABELS[user.verification_status] ?? STATUS_LABELS.not_started;
+  const status = STATUS_MAP[user.verification_status] ?? STATUS_MAP.not_started;
+
+  async function logout() {
+    "use server";
+    await clearAdminCookie();
+    redirect("/admin/login");
+  }
 
   async function approve() {
     "use server";
@@ -96,250 +117,290 @@ export default async function ModerationDetailPage({
     redirect("/admin/moderation");
   }
 
-  const initial =
-    (user.telegram_first_name ?? "?").trim().slice(0, 1).toUpperCase();
+  const initial = (user.telegram_first_name ?? "?")
+    .trim()
+    .slice(0, 1)
+    .toUpperCase();
+
+  const fullName = [user.telegram_first_name, user.telegram_last_name]
+    .filter(Boolean)
+    .join(" ") || "Без имени";
 
   return (
-    <div className="min-h-dvh bg-[--color-cream]">
-      <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8 sm:py-12">
-        {/* Top bar */}
-        <header className="mb-7 flex items-center justify-between">
-          <LogoLockup size={28} />
-          <Link
-            href="/admin/moderation"
-            className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-medium text-[--color-plum] hover:text-[--color-brand-deep]"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden>
-              <path d="M13 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            К очереди
-          </Link>
-        </header>
-
-        {/* Profile header card */}
-        <section className="mb-5 overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
-          <div
-            className="h-20"
-            style={{
-              background:
-                "linear-gradient(135deg, var(--color-blush) 0%, var(--color-cream-2) 100%)",
-            }}
+    <AdminShell
+      title={fullName}
+      subtitle={
+        user.telegram_username
+          ? `@${user.telegram_username} · TG ${user.telegram_id}`
+          : `TG ${user.telegram_id}`
+      }
+      breadcrumb={[
+        { label: "Модерация", href: "/admin/moderation" },
+        { label: fullName, href: `/admin/moderation/${id}` },
+      ]}
+      actions={<StatusBadge label={status.label} tone={status.tone} />}
+      onLogout={logout}
+    >
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        {/* LEFT: Documents */}
+        <div className="flex flex-col gap-4">
+          <DocCard
+            title="Паспорт"
+            url={passportUrl}
+            uploadedAt={doc?.passport_uploaded_at}
+            kind="passport"
           />
-          <div className="px-7 pb-7">
-            <div className="-mt-12 flex items-end gap-4">
-              <div
-                className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border-4 border-white text-2xl font-bold shadow-[0_4px_16px_rgba(74,44,53,0.08)]"
-                style={{
-                  backgroundColor: "var(--color-blush)",
-                  color: "var(--color-brand-deep)",
-                }}
-              >
-                {initial}
-              </div>
-              <div className="flex-1 pb-2">
-                <StatusPill status={status} />
+          <DocCard
+            title="Selfie / Liveness"
+            url={selfieUrl}
+            uploadedAt={doc?.selfie_uploaded_at}
+            kind="selfie"
+          />
+        </div>
+
+        {/* RIGHT: Info + Decision */}
+        <div className="flex flex-col gap-4">
+          {/* User info */}
+          <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
+            <div className="border-b border-[--admin-border] bg-[--admin-surface-2] px-5 py-3">
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold"
+                  style={{
+                    backgroundColor: "var(--admin-surface)",
+                    color: "var(--admin-text-2)",
+                    border: "1px solid var(--admin-border)",
+                  }}
+                >
+                  {initial}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-[--admin-text]">
+                    {fullName}
+                  </p>
+                  <p className="text-xs text-[--admin-text-muted]">
+                    Заявка #{id.slice(0, 8)}
+                  </p>
+                </div>
               </div>
             </div>
-            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-[--color-plum]">
-              {user.telegram_first_name ?? "Без имени"}
-              {user.telegram_username ? (
-                <span className="ml-2 text-base font-normal text-[--color-ink-muted]">
-                  @{user.telegram_username}
-                </span>
-              ) : null}
-            </h1>
-            <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
-              <Info label="Telegram ID" value={String(user.telegram_id)} />
-              <Info label="Телефон" value={user.phone_number ?? "—"} mono />
-              <Info label="Язык" value={user.language?.toUpperCase() ?? "—"} />
-              <Info
-                label="Заявка подана"
-                value={
-                  doc?.submitted_at
-                    ? new Date(doc.submitted_at).toLocaleString("ru-RU", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : "—"
-                }
+            <dl className="divide-y divide-[--admin-border]">
+              <Row label="Telegram ID" value={String(user.telegram_id)} mono />
+              <Row label="Username" value={user.telegram_username ? `@${user.telegram_username}` : "—"} />
+              <Row label="Телефон" value={user.phone_number ?? "—"} mono />
+              <Row label="Язык" value={user.language?.toUpperCase() ?? "—"} />
+              <Row
+                label="Создан"
+                value={formatDateTime(user.created_at)}
               />
-            </dl>
-          </div>
-        </section>
-
-        {/* Documents grid */}
-        <section className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Photo title="Паспорт" url={passportUrl} uploadedAt={doc?.passport_uploaded_at} />
-          <Photo title="Selfie / Liveness" url={selfieUrl} uploadedAt={doc?.selfie_uploaded_at} />
-        </section>
-
-        {/* Actions */}
-        <section className="rounded-3xl bg-white p-6 shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
-          <h2 className="text-base font-semibold text-[--color-plum]">
-            Решение
-          </h2>
-          <p className="mt-1 text-sm text-[--color-ink-2]">
-            Проверьте, что фото читаются, лицо на selfie совпадает с фото в паспорте, и документ не подделан.
-          </p>
-
-          <form action={approve} className="mt-5">
-            <button
-              type="submit"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(92,155,122,0.5)] transition active:scale-[.99]"
-              style={{ backgroundColor: "var(--color-success)" }}
-            >
-              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none" aria-hidden>
-                <path d="M5 10.5l3.5 3.5L15 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Одобрить
-            </button>
-          </form>
-
-          <details className="group mt-3 rounded-2xl border border-[--color-line] open:bg-[--color-blush-soft]">
-            <summary className="flex cursor-pointer items-center justify-between px-5 py-3.5 text-sm font-semibold text-[--color-danger] [&::-webkit-details-marker]:hidden">
-              <span className="inline-flex items-center gap-2">
-                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden>
-                  <path d="M10 6v4m0 3.5v.01M3 17h14a1 1 0 0 0 .9-1.4L10.9 3.6a1 1 0 0 0-1.8 0L2.1 15.6A1 1 0 0 0 3 17z" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                Отклонить с указанием причины
-              </span>
-              <svg
-                className="h-4 w-4 transition group-open:rotate-180"
-                viewBox="0 0 20 20"
-                fill="none"
-                aria-hidden
-              >
-                <path d="M5 8l5 5 5-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </summary>
-            <form action={reject} className="flex flex-col gap-3 px-5 pb-5">
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
-                  Что переснять
-                </span>
-                <select
-                  name="kind"
-                  className="h-11 rounded-xl border border-[--color-line] bg-white px-3 text-sm text-[--color-plum]"
-                >
-                  <option value="passport">Только паспорт</option>
-                  <option value="selfie">Только selfie</option>
-                  <option value="both">Оба фото</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
-                  Причина для пользователя
-                </span>
-                <textarea
-                  name="reason"
-                  placeholder="Например: фото размыто, данные не читаются, selfie не совпадает с паспортом"
-                  className="min-h-[80px] rounded-xl border border-[--color-line] bg-white p-3 text-sm text-[--color-plum] placeholder:text-[--color-ink-muted]"
-                  required
+              <Row
+                label="Заявка подана"
+                value={formatDateTime(doc?.submitted_at)}
+              />
+              {doc?.rejection_reason ? (
+                <Row
+                  label="Прошлая отбраковка"
+                  value={doc.rejection_reason}
+                  hint={doc.rejection_kind ?? undefined}
                 />
-              </label>
+              ) : null}
+            </dl>
+          </section>
+
+          {/* Decision */}
+          <section className="rounded-xl border border-[--admin-border] bg-white p-5 shadow-[var(--admin-shadow-sm)]">
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold text-[--admin-text]">
+                Решение модератора
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-[--admin-text-2]">
+                Проверьте, что фото читаются, лицо на selfie совпадает с
+                паспортом, документ не подделан.
+              </p>
+            </div>
+
+            <form action={approve}>
               <button
                 type="submit"
-                className="inline-flex h-11 items-center justify-center rounded-2xl text-sm font-semibold text-white transition active:scale-[.99]"
-                style={{ backgroundColor: "var(--color-danger)" }}
+                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-[var(--admin-shadow-sm)] transition hover:brightness-110 active:brightness-95"
+                style={{ backgroundColor: "var(--admin-success)" }}
               >
-                Отправить отклонение
+                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M3.5 8.5l3 3 6-6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Одобрить
               </button>
             </form>
-          </details>
-        </section>
+
+            <details className="group mt-3 overflow-hidden rounded-lg border border-[--admin-border]">
+              <summary className="flex cursor-pointer items-center justify-between px-4 py-2.5 text-xs font-semibold text-[--admin-danger] [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M8 5v3.5M8 11h.01M2.5 13.5h11a1 1 0 0 0 .87-1.5L8.87 3a1 1 0 0 0-1.74 0L1.63 12a1 1 0 0 0 .87 1.5z"
+                      stroke="currentColor"
+                      strokeWidth="1.4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Отклонить заявку
+                </span>
+                <svg
+                  className="h-3.5 w-3.5 transition group-open:rotate-180"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M4 6l4 4 4-4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </summary>
+              <form action={reject} className="flex flex-col gap-3 border-t border-[--admin-border] bg-[--admin-surface-2] px-4 py-4">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
+                    Что переснять
+                  </span>
+                  <select
+                    name="kind"
+                    className="h-9 rounded-md border border-[--admin-border] bg-white px-2.5 text-sm text-[--admin-text]"
+                  >
+                    <option value="passport">Только паспорт</option>
+                    <option value="selfie">Только selfie</option>
+                    <option value="both">Оба фото</option>
+                  </select>
+                </label>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
+                    Причина для пользователя
+                  </span>
+                  <textarea
+                    name="reason"
+                    placeholder="Например: фото размыто, данные не читаются, selfie не совпадает с паспортом"
+                    className="min-h-[72px] resize-none rounded-md border border-[--admin-border] bg-white px-3 py-2 text-sm leading-relaxed text-[--admin-text] placeholder:text-[--admin-text-muted]"
+                    required
+                  />
+                </label>
+                <button
+                  type="submit"
+                  className="inline-flex h-9 items-center justify-center rounded-md text-xs font-semibold text-white transition hover:brightness-110 active:brightness-95"
+                  style={{ backgroundColor: "var(--admin-danger)" }}
+                >
+                  Отправить отклонение
+                </button>
+              </form>
+            </details>
+          </section>
+        </div>
       </div>
-    </div>
+    </AdminShell>
   );
 }
 
-function StatusPill({
-  status,
-}: {
-  status: { label: string; tone: "warn" | "success" | "danger" | "neutral" };
-}) {
-  const styles = {
-    warn: { bg: "var(--color-warn-bg)", text: "var(--color-warn)" },
-    success: { bg: "var(--color-success-bg)", text: "var(--color-success)" },
-    danger: { bg: "var(--color-danger-bg)", text: "var(--color-danger)" },
-    neutral: { bg: "var(--color-blush)", text: "var(--color-plum-soft)" },
-  }[status.tone];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
-      style={{ backgroundColor: styles.bg, color: styles.text }}
-    >
-      <span
-        className="h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: styles.text }}
-      />
-      {status.label}
-    </span>
-  );
-}
-
-function Info({
+function Row({
   label,
   value,
   mono,
+  hint,
 }: {
   label: string;
   value: string;
   mono?: boolean;
+  hint?: string;
 }) {
   return (
-    <div>
-      <dt className="text-[10px] font-semibold uppercase tracking-wider text-[--color-ink-muted]">
-        {label}
-      </dt>
-      <dd
-        className={`mt-1 text-sm text-[--color-plum] ${mono ? "font-mono" : "font-medium"}`}
-      >
-        {value}
+    <div className="flex items-start justify-between gap-3 px-5 py-2.5">
+      <dt className="shrink-0 text-xs text-[--admin-text-muted]">{label}</dt>
+      <dd className="text-right">
+        <p
+          className={`text-sm text-[--admin-text] ${mono ? "font-mono text-xs" : ""}`}
+        >
+          {value}
+        </p>
+        {hint ? (
+          <p className="text-[11px] text-[--admin-text-muted]">{hint}</p>
+        ) : null}
       </dd>
     </div>
   );
 }
 
-function Photo({
+function DocCard({
   title,
   url,
   uploadedAt,
+  kind,
 }: {
   title: string;
   url: string | null;
   uploadedAt: string | null | undefined;
+  kind: "passport" | "selfie";
 }) {
   return (
-    <div className="overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
-      <div className="flex items-center justify-between border-b border-[--color-line-soft] px-5 py-3.5">
-        <p className="text-sm font-semibold text-[--color-plum]">{title}</p>
+    <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
+      <div className="flex items-center justify-between border-b border-[--admin-border] bg-[--admin-surface-2] px-4 py-2.5">
+        <div className="flex items-center gap-2">
+          <span
+            className="flex h-6 w-6 items-center justify-center rounded-md"
+            style={{
+              backgroundColor: "var(--admin-info-bg)",
+              color: "var(--admin-info)",
+            }}
+            aria-hidden
+          >
+            {kind === "passport" ? (
+              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none">
+                <rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M5.5 6h5M5.5 8.5h5M5.5 11h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="6" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M3 13c0-2.5 2-4.5 5-4.5s5 2 5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            )}
+          </span>
+          <p className="text-sm font-semibold text-[--admin-text]">{title}</p>
+        </div>
         {uploadedAt ? (
-          <p className="text-[11px] text-[--color-ink-muted]">
-            {new Date(uploadedAt).toLocaleString("ru-RU", {
-              day: "numeric",
-              month: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+          <p className="text-[11px] text-[--admin-text-muted]">
+            {formatDateTime(uploadedAt)}
           </p>
         ) : null}
       </div>
       {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt={title} className="block w-full" />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt={title} className="block w-full" />
+        </a>
       ) : (
         <div
-          className="flex h-48 flex-col items-center justify-center gap-2 text-center text-sm text-[--color-ink-muted]"
-          style={{ backgroundColor: "var(--color-cream-2)" }}
+          className="flex h-56 flex-col items-center justify-center gap-2 text-center text-sm text-[--admin-text-muted]"
+          style={{ backgroundColor: "var(--admin-surface-2)" }}
         >
-          <svg className="h-8 w-8 opacity-50" viewBox="0 0 24 24" fill="none" aria-hidden>
-            <path d="M21 15V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M3 10l9-7 9 7M9 21V11h6v10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          <svg className="h-7 w-7 opacity-50" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M21 15V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M3 10l9-7 9 7M9 21V11h6v10"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
           </svg>
           <p>Нет файла</p>
         </div>
       )}
-    </div>
+    </section>
   );
 }
