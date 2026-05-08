@@ -45,7 +45,24 @@ async function uploadToBucket(
   return path;
 }
 
+async function deleteIfExists(bucket: string, path: string | null | undefined) {
+  if (!path) return;
+  await supabaseAdmin.storage.from(bucket).remove([path]).catch(() => {
+    // ignore errors — file may already be gone or permissions weird, doesn't
+    // matter for storage hygiene
+  });
+}
+
 export async function uploadPassport(userId: string, file: File): Promise<string> {
+  // Clean up the previous passport file (if any) before uploading the new one
+  // — orphaned files in the documents bucket otherwise grow forever.
+  const { data: existing } = await supabaseAdmin
+    .from("user_documents")
+    .select("passport_path")
+    .eq("user_id", userId)
+    .maybeSingle();
+  await deleteIfExists("documents", existing?.passport_path);
+
   const path = await uploadToBucket("documents", userId, file, "passport");
   await supabaseAdmin
     .from("user_documents")
@@ -61,6 +78,13 @@ export async function uploadPassport(userId: string, file: File): Promise<string
 }
 
 export async function uploadSelfie(userId: string, file: File): Promise<string> {
+  const { data: existing } = await supabaseAdmin
+    .from("user_documents")
+    .select("selfie_path")
+    .eq("user_id", userId)
+    .maybeSingle();
+  await deleteIfExists("documents", existing?.selfie_path);
+
   const path = await uploadToBucket("documents", userId, file, "selfie");
   await supabaseAdmin
     .from("user_documents")
