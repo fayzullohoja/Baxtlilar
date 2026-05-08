@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AdminShell, StatTile, StatusBadge } from "@/components/admin/shell";
+import { KeyboardShortcuts } from "@/components/admin/keyboard-shortcuts";
 
 const PAGE_SIZE = 50;
 
@@ -277,7 +278,8 @@ export default async function ModerationListPage({
                     return (
                       <tr
                         key={u.id}
-                        className="group border-b border-[--admin-border] last:border-b-0 transition hover:bg-[--admin-row-hover]"
+                        data-queue-row={`/admin/moderation/${u.id}`}
+                        className="group border-b border-[--admin-border] last:border-b-0 transition hover:bg-[--admin-row-hover] data-[focused=true]:bg-[--admin-info-bg]"
                       >
                         <td className="px-5 py-3">
                           <Link
@@ -390,6 +392,10 @@ export default async function ModerationListPage({
           </>
         )}
       </section>
+      <KeyboardShortcuts
+        type="queue"
+        rows={items.map((u) => `/admin/moderation/${u.id}`)}
+      />
     </AdminShell>
   );
 }

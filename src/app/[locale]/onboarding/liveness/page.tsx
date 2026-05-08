@@ -6,6 +6,8 @@ import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { uploadSelfie } from "@/lib/uploads/documents";
 import { PhotoUploader } from "@/components/photo-uploader";
+import { notifyAdminTelegram, buildSubmissionMessage } from "@/lib/admin/notify";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export default async function LivenessPage({
   params,
@@ -33,6 +35,36 @@ export default async function LivenessPage({
       },
       "selfie uploaded — moderation pending",
     );
+
+    // Fire-and-forget admin notification (no await — keeps user flow snappy)
+    void (async () => {
+      try {
+        const [{ count }, { data: meta }] = await Promise.all([
+          supabaseAdmin
+            .from("users")
+            .select("id", { count: "exact", head: true })
+            .eq("verification_status", "pending_review"),
+          supabaseAdmin
+            .from("users")
+            .select("telegram_first_name, telegram_username")
+            .eq("id", user.id)
+            .maybeSingle(),
+        ]);
+        await notifyAdminTelegram(
+          buildSubmissionMessage({
+            userId: user.id,
+            name: meta?.telegram_first_name ?? null,
+            username: meta?.telegram_username ?? null,
+            telegramId: user.telegram_id,
+            queueLength: count ?? 0,
+            appUrl: process.env.APP_URL,
+          }),
+        );
+      } catch (e) {
+        console.warn("[notify-admin] failed:", e instanceof Error ? e.message : e);
+      }
+    })();
+
     redirect(`/${locale}${ONBOARDING_PATHS.moderation_submitted}`);
   }
 

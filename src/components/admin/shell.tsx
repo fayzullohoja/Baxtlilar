@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/logo";
 const NAV_ITEMS = [
   { href: "/admin/moderation", label: "Очередь", match: "/admin/moderation" },
   { href: "/admin/users", label: "Все юзеры", match: "/admin/users" },
+  { href: "/admin/banned", label: "Забанены", match: "/admin/banned" },
   { href: "/admin/audit", label: "Журнал", match: "/admin/audit" },
   { href: "/admin/stats", label: "Аналитика", match: "/admin/stats" },
 ];

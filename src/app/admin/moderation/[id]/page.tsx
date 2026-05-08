@@ -3,6 +3,7 @@ import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
+import { KeyboardShortcuts } from "@/components/admin/keyboard-shortcuts";
 import { RejectForm } from "./reject-form";
 
 async function signedDoc(path: string | null | undefined) {
@@ -65,6 +66,51 @@ export default async function ModerationDetailPage({
   const selfieUrl = await signedDoc(doc?.selfie_path);
   const status = STATUS_MAP[user.verification_status] ?? STATUS_MAP.not_started;
 
+  // Recent state transitions for this user
+  const { data: recentTransitions } = await supabaseAdmin
+    .from("user_state_transitions")
+    .select("id, field, old_value, new_value, reason, triggered_by, created_at")
+    .eq("user_id", id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  // Profile + quiz (may be null if user hasn't reached those steps)
+  const { data: profile } = await supabaseAdmin
+    .from("user_profiles")
+    .select(
+      "display_name, birth_date, gender, city, district, marital_status, education_level, work_industry, profession, employment_status, has_children, wants_children, marriage_timeline, religiosity_level, smoking_status, alcohol_status, interests, looking_for_gender, preferred_age_min, preferred_age_max, preferred_partner_qualities, about_me, marriage_values_text",
+    )
+    .eq("user_id", id)
+    .maybeSingle();
+
+  const { data: quiz } = await supabaseAdmin
+    .from("quiz_results")
+    .select(
+      "intention_type, relationship_tempo, communication_style, family_values_score, conflict_style, privacy_preference, match_priority_score",
+    )
+    .eq("user_id", id)
+    .maybeSingle();
+
+  // Surrounding pending users for keyboard J/K navigation
+  let nextHref: string | null = null;
+  let prevHref: string | null = null;
+  if (user.verification_status === "pending_review") {
+    const { data: pending } = await supabaseAdmin
+      .from("users")
+      .select("id, created_at")
+      .eq("verification_status", "pending_review")
+      .order("created_at", { ascending: true });
+    if (pending) {
+      const idx = pending.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        if (idx + 1 < pending.length)
+          nextHref = `/admin/moderation/${pending[idx + 1].id}`;
+        if (idx - 1 >= 0)
+          prevHref = `/admin/moderation/${pending[idx - 1].id}`;
+      }
+    }
+  }
+
   async function logout() {
     "use server";
     await clearAdminCookie();
@@ -91,6 +137,38 @@ export default async function ModerationDetailPage({
       "moderator approved",
       "admin",
     );
+    redirect("/admin/moderation");
+  }
+
+  async function approveAndNext() {
+    "use server";
+    await supabaseAdmin
+      .from("user_documents")
+      .update({
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: null,
+        rejection_kind: null,
+      })
+      .eq("user_id", id);
+    await transition(
+      id,
+      {
+        verification_status: "approved",
+        onboarding_step: "profile_basic",
+        profile_completion: "in_progress",
+      },
+      "moderator approved (and-next flow)",
+      "admin",
+    );
+    // Find next oldest pending user (excluding the one we just approved — but it's no longer pending anyway)
+    const { data: next } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("verification_status", "pending_review")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (next?.id) redirect(`/admin/moderation/${next.id}`);
     redirect("/admin/moderation");
   }
 
@@ -237,26 +315,41 @@ export default async function ModerationDetailPage({
               </p>
             </div>
 
-            <form action={approve}>
-              <button
-                type="submit"
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-[var(--admin-shadow-sm)] transition hover:brightness-110 active:brightness-95"
-                style={{ backgroundColor: "var(--admin-success)" }}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-                  <path
-                    d="M3.5 8.5l3 3 6-6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                Одобрить
-              </button>
-            </form>
+            <div className="flex flex-col gap-2">
+              <form action={approveAndNext}>
+                <button
+                  type="submit"
+                  data-shortcut="approve-next"
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-white shadow-[var(--admin-shadow-sm)] transition hover:brightness-110 active:brightness-95"
+                  style={{ backgroundColor: "var(--admin-success)" }}
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M3.5 8.5l3 3 6-6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Одобрить и следующий
+                  <kbd className="ml-1 rounded border border-white/30 bg-white/10 px-1 text-[10px] font-mono">A</kbd>
+                </button>
+              </form>
+              <form action={approve}>
+                <button
+                  type="submit"
+                  className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-md text-xs font-medium text-[--admin-text-2] transition hover:text-[--admin-text]"
+                >
+                  Одобрить и вернуться к очереди
+                </button>
+              </form>
+            </div>
 
-            <details className="group mt-3 overflow-hidden rounded-lg border border-[--admin-border]">
+            <details
+              data-shortcut="reject-toggle"
+              className="group mt-3 overflow-hidden rounded-lg border border-[--admin-border]"
+            >
               <summary className="flex cursor-pointer items-center justify-between px-4 py-2.5 text-xs font-semibold text-[--admin-danger] [&::-webkit-details-marker]:hidden">
                 <span className="inline-flex items-center gap-2">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none">
@@ -269,6 +362,7 @@ export default async function ModerationDetailPage({
                     />
                   </svg>
                   Отклонить заявку
+                  <kbd className="ml-1 rounded border border-[--admin-border] bg-[--admin-surface-2] px-1 font-mono text-[10px] font-normal text-[--admin-text-muted]">R</kbd>
                 </span>
                 <svg
                   className="h-3.5 w-3.5 transition group-open:rotate-180"
@@ -335,8 +429,243 @@ export default async function ModerationDetailPage({
           </section>
         </div>
       </div>
+
+      {/* Bottom row: profile + audit log */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <ProfileCard profile={profile} quiz={quiz} />
+        <AuditCard transitions={recentTransitions ?? []} userId={id} />
+      </div>
+
+      <KeyboardShortcuts
+        type="detail"
+        queueHref="/admin/moderation"
+        nextHref={nextHref}
+        prevHref={prevHref}
+      />
     </AdminShell>
   );
+}
+
+function ProfileCard({
+  profile,
+  quiz,
+}: {
+  profile: Record<string, unknown> | null;
+  quiz: Record<string, unknown> | null;
+}) {
+  const hasProfile = profile && Object.values(profile).some((v) => v != null && v !== "");
+  return (
+    <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
+      <div className="flex items-center justify-between border-b border-[--admin-border] bg-[--admin-surface-2] px-5 py-3">
+        <h2 className="text-sm font-semibold text-[--admin-text]">Анкета и квиз</h2>
+        {!hasProfile ? (
+          <span className="text-[11px] text-[--admin-text-muted]">пусто</span>
+        ) : null}
+      </div>
+      {!hasProfile ? (
+        <p className="px-5 py-8 text-center text-sm text-[--admin-text-2]">
+          Юзер ещё не дошёл до анкеты
+        </p>
+      ) : (
+        <dl className="divide-y divide-[--admin-border]">
+          {profile?.display_name ? (
+            <Row label="Имя" value={String(profile.display_name)} />
+          ) : null}
+          {profile?.birth_date ? (
+            <Row
+              label="Дата рожд."
+              value={String(profile.birth_date)}
+              hint={
+                typeof profile.birth_date === "string"
+                  ? `${calcAge(profile.birth_date)} лет`
+                  : undefined
+              }
+            />
+          ) : null}
+          {profile?.gender ? (
+            <Row
+              label="Пол"
+              value={profile.gender === "female" ? "Жен" : "Муж"}
+            />
+          ) : null}
+          {profile?.city ? (
+            <Row
+              label="Город"
+              value={
+                String(profile.city) +
+                (profile.district ? `, ${profile.district}` : "")
+              }
+            />
+          ) : null}
+          {profile?.marital_status ? (
+            <Row label="Семейный статус" value={String(profile.marital_status)} />
+          ) : null}
+          {profile?.profession ? (
+            <Row
+              label="Профессия"
+              value={String(profile.profession)}
+              hint={profile.work_industry ? String(profile.work_industry) : undefined}
+            />
+          ) : null}
+          {profile?.education_level ? (
+            <Row label="Образование" value={String(profile.education_level)} />
+          ) : null}
+          {profile?.has_children ? (
+            <Row
+              label="Дети"
+              value={
+                String(profile.has_children) +
+                (profile.wants_children ? ` · хочет: ${profile.wants_children}` : "")
+              }
+            />
+          ) : null}
+          {profile?.marriage_timeline ? (
+            <Row label="Готов к браку" value={String(profile.marriage_timeline)} />
+          ) : null}
+          {profile?.about_me ? (
+            <div className="px-5 py-3">
+              <dt className="text-xs text-[--admin-text-muted]">О себе</dt>
+              <dd className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-[--admin-text]">
+                {String(profile.about_me)}
+              </dd>
+            </div>
+          ) : null}
+          {quiz ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-[--admin-surface-2] px-5 py-4">
+              {(
+                [
+                  ["Намерение", quiz.intention_type],
+                  ["Темп", quiz.relationship_tempo],
+                  ["Стиль общения", quiz.communication_style],
+                  ["Семейные ценности", `${quiz.family_values_score ?? 0} / 4`],
+                  ["Конфликты", quiz.conflict_style],
+                  ["Match priority", quiz.match_priority_score],
+                ] as const
+              ).map(([label, val]) =>
+                val != null && val !== "" ? (
+                  <div key={label}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
+                      {label}
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-[--admin-text]">
+                      {String(val)}
+                    </p>
+                  </div>
+                ) : null,
+              )}
+            </div>
+          ) : null}
+        </dl>
+      )}
+    </section>
+  );
+}
+
+interface TransitionRow {
+  id: string;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  reason: string | null;
+  triggered_by: string | null;
+  created_at: string;
+}
+
+function AuditCard({
+  transitions,
+  userId,
+}: {
+  transitions: TransitionRow[];
+  userId: string;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
+      <div className="flex items-center justify-between border-b border-[--admin-border] bg-[--admin-surface-2] px-5 py-3">
+        <h2 className="text-sm font-semibold text-[--admin-text]">
+          История переходов
+        </h2>
+        <a
+          href={`/admin/audit?user=${userId}`}
+          className="text-[11px] text-[--admin-info] hover:underline"
+        >
+          Полный лог →
+        </a>
+      </div>
+      {transitions.length === 0 ? (
+        <p className="px-5 py-8 text-center text-sm text-[--admin-text-2]">
+          Пока без изменений
+        </p>
+      ) : (
+        <ol className="flex flex-col">
+          {transitions.map((t) => {
+            const triggerColor =
+              t.triggered_by === "admin"
+                ? "var(--admin-accent-deep)"
+                : t.triggered_by === "user"
+                  ? "var(--admin-info)"
+                  : "var(--admin-text-muted)";
+            return (
+              <li
+                key={t.id}
+                className="flex flex-col gap-1 border-b border-[--admin-border] px-5 py-3 last:border-b-0"
+              >
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold"
+                      style={{
+                        backgroundColor: "var(--admin-surface-2)",
+                        color: "var(--admin-text-2)",
+                      }}
+                    >
+                      {t.field}
+                    </span>
+                    <span className="font-mono text-[--admin-text-muted]">
+                      {t.old_value || "∅"}
+                    </span>
+                    <span className="text-[--admin-text-muted]">→</span>
+                    <span className="font-mono font-semibold text-[--admin-text]">
+                      {t.new_value || "∅"}
+                    </span>
+                  </div>
+                  <span
+                    className="rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                    style={{
+                      backgroundColor: "var(--admin-surface-2)",
+                      color: triggerColor,
+                    }}
+                  >
+                    {t.triggered_by ?? "—"}
+                  </span>
+                </div>
+                {t.reason ? (
+                  <p className="text-xs text-[--admin-text-2]">{t.reason}</p>
+                ) : null}
+                <p className="text-[10px] text-[--admin-text-muted]">
+                  {new Date(t.created_at).toLocaleString("ru-RU", {
+                    day: "numeric",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
+}
+
+function calcAge(birthDate: string): number {
+  const b = new Date(birthDate);
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
 }
 
 function Row({
