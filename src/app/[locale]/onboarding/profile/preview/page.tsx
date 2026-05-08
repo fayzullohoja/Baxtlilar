@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody, ScreenFooter, PrimaryButton, SecondaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -10,7 +10,7 @@ export default async function ProfilePreviewPage({ params }: { params: Promise<{
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("profile");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "profile_preview");
   const { data: profile } = await supabaseAdmin
     .from("user_profiles")
     .select("*")

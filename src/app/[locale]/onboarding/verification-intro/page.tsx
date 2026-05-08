@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 
@@ -13,7 +13,7 @@ export default async function VerificationIntroPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("verification_intro");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "verification_intro");
 
   async function next() {
     "use server";

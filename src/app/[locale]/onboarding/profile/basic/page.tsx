@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody, PrimaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -19,7 +19,7 @@ export default async function ProfileBasicPage({
   setRequestLocale(locale);
   const t = await getTranslations("profile");
   const tc = await getTranslations("common");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "profile_basic");
 
   const { data: existing } = await supabaseAdmin
     .from("user_profiles")

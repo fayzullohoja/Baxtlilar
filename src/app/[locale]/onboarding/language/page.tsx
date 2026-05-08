@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 
@@ -13,7 +13,7 @@ export default async function LanguagePage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("language");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "language");
 
   async function pick(formData: FormData) {
     "use server";

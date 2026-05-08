@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { uploadSelfie } from "@/lib/uploads/documents";
@@ -11,14 +11,28 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export default async function LivenessPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("liveness");
   const tDoc = await getTranslations("document");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "liveness_upload");
+
+  const errMsg =
+    error === "empty"
+      ? "Прикрепите selfie"
+      : error === "mime"
+        ? "Неверный формат. Поддерживается JPG, PNG, HEIC, WebP."
+        : error === "size"
+          ? "Файл слишком большой. Максимум 10 МБ."
+          : error === "upload"
+            ? "Не удалось загрузить файл. Попробуйте снова."
+            : null;
 
   async function upload(formData: FormData) {
     "use server";
@@ -26,7 +40,17 @@ export default async function LivenessPage({
     if (!file || file.size === 0) {
       redirect(`/${locale}${ONBOARDING_PATHS.liveness_upload}?error=empty`);
     }
-    await uploadSelfie(user.id, file!);
+    try {
+      await uploadSelfie(user.id, file!);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      const code = msg.includes("Unsupported")
+        ? "mime"
+        : msg.includes("too large")
+          ? "size"
+          : "upload";
+      redirect(`/${locale}${ONBOARDING_PATHS.liveness_upload}?error=${code}`);
+    }
     await transition(
       user.id,
       {
@@ -72,6 +96,11 @@ export default async function LivenessPage({
     <Screen>
       <ScreenHeader title={t("title")} subtitle={t("body")} />
       <ScreenBody>
+        {errMsg ? (
+          <p className="mb-4 rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
+            {errMsg}
+          </p>
+        ) : null}
         <div
           className="mb-5 rounded-2xl px-4 py-3"
           style={{ backgroundColor: "var(--color-blush-soft)" }}

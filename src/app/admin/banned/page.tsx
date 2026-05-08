@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
+import { isAdmin, clearAdminCookie, requireAdmin } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell } from "@/components/admin/shell";
@@ -64,8 +64,9 @@ export default async function BannedListPage({
 
   async function unban(formData: FormData) {
     "use server";
+    await requireAdmin();
     const userId = String(formData.get("user_id"));
-    if (!userId) return;
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return;
     // Restore to onboarding/active depending on profile_completion (best-effort)
     const { data: u } = await supabaseAdmin
       .from("users")

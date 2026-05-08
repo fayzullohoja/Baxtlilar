@@ -19,7 +19,7 @@ export function OtpForm({
     tooMany: string;
     devHint: string | null;
   };
-  initialError: "invalid" | "too_many" | null;
+  initialError: "invalid" | "too_many" | "rate_limit" | null;
 }) {
   const [code, setCode] = useState("");
   const [pending, startTransition] = useTransition();
@@ -57,6 +57,11 @@ export function OtpForm({
       {initialError === "too_many" ? (
         <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-center text-sm text-[--color-danger]">
           {labels.tooMany}
+        </p>
+      ) : null}
+      {initialError === "rate_limit" ? (
+        <p className="rounded-2xl bg-[--color-warn-bg] px-4 py-3 text-center text-sm text-[--color-warn]">
+          Слишком быстро. Подождите минуту перед следующим запросом.
         </p>
       ) : null}
       {labels.devHint ? (

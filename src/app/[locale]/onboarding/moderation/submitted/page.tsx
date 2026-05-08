@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 
@@ -14,7 +14,7 @@ export default async function ModerationSubmittedPage({
   setRequestLocale(locale);
   const t = await getTranslations("moderation");
   const tc = await getTranslations("common");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "moderation_submitted");
 
   async function ack() {
     "use server";

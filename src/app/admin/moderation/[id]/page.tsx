@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
+import { isAdmin, clearAdminCookie, requireAdmin } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
@@ -120,6 +120,7 @@ export default async function ModerationDetailPage({
 
   async function approve() {
     "use server";
+    await requireAdmin();
     await supabaseAdmin
       .from("user_documents")
       .update({
@@ -143,6 +144,7 @@ export default async function ModerationDetailPage({
 
   async function approveAndNext() {
     "use server";
+    await requireAdmin();
     await supabaseAdmin
       .from("user_documents")
       .update({
@@ -175,6 +177,7 @@ export default async function ModerationDetailPage({
 
   async function reject(formData: FormData) {
     "use server";
+    await requireAdmin();
     const reason = String(formData.get("reason") ?? "Документы не приняты").trim();
     const kind = String(formData.get("kind") ?? "passport");
     await supabaseAdmin
@@ -199,6 +202,7 @@ export default async function ModerationDetailPage({
 
   async function ban() {
     "use server";
+    await requireAdmin();
     await transition(
       id,
       {

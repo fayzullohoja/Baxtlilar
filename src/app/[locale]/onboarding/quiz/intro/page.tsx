@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 
@@ -9,7 +9,7 @@ export default async function QuizIntroPage({ params }: { params: Promise<{ loca
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("quiz");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "quiz_intro");
 
   async function start() {
     "use server";

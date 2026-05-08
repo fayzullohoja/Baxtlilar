@@ -220,6 +220,8 @@ d("OTP service (real DB, mock SMS)", () => {
   beforeEach(async () => {
     userId = await makeUser();
     process.env.SMS_PROVIDER = "mock";
+    // Tests issue many sendOtp calls in succession — bypass rate limiting.
+    process.env.OTP_DISABLE_RATE_LIMIT = "1";
   });
 
   it("sendOtp inserts a new row with hashed code + future expiry", async () => {

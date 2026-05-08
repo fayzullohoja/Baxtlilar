@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { verifyOtp, sendOtp } from "@/lib/otp/service";
@@ -18,7 +18,7 @@ export default async function OtpPage({
   const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("otp");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "otp_pending");
 
   async function verify(formData: FormData) {
     "use server";
@@ -44,7 +44,12 @@ export default async function OtpPage({
   async function resend() {
     "use server";
     if (!user.phone_number) return;
-    await sendOtp(user.id, user.phone_number);
+    const result = await sendOtp(user.id, user.phone_number);
+    if (!result.ok) {
+      redirect(
+        `/${locale}${ONBOARDING_PATHS.otp_pending}?error=${result.reason === "rate_limit_minute" ? "rate_limit" : "too_many"}`,
+      );
+    }
   }
 
   const isDev =
@@ -68,7 +73,15 @@ export default async function OtpPage({
             tooMany: t("too_many"),
             devHint: isDev ? t("dev_hint") : null,
           }}
-          initialError={error === "invalid" ? "invalid" : error === "too_many" ? "too_many" : null}
+          initialError={
+            error === "invalid"
+              ? "invalid"
+              : error === "too_many"
+                ? "too_many"
+                : error === "rate_limit"
+                  ? "rate_limit"
+                  : null
+          }
         />
       </ScreenBody>
     </Screen>

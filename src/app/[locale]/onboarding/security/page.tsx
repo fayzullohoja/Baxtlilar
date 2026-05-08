@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenHeader, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 
@@ -14,7 +14,7 @@ export default async function SecurityIntroPage({
   setRequestLocale(locale);
   const t = await getTranslations("security");
   const tc = await getTranslations("common");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "security_intro");
 
   async function next() {
     "use server";

@@ -12,7 +12,57 @@ function generateCode(): string {
   return String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
-export async function sendOtp(userId: string, phone: string): Promise<void> {
+/**
+ * Rate limit: at most 1 OTP send per user per minute, max 5 sends per hour.
+ * Real SMS providers cost money — uncapped sending is a wallet/abuse vector.
+ */
+const RATE_LIMIT_PER_MINUTE_MS = 60 * 1000;
+const RATE_LIMIT_PER_HOUR = 5;
+
+export type SendOtpResult =
+  | { ok: true }
+  | { ok: false; reason: "rate_limit_minute" | "rate_limit_hour" };
+
+export async function sendOtp(userId: string, phone: string): Promise<SendOtpResult> {
+  // Tests opt-out of rate limiting; never honored in production.
+  const skipRateLimit =
+    process.env.OTP_DISABLE_RATE_LIMIT === "1" &&
+    process.env.NODE_ENV !== "production";
+
+  if (skipRateLimit) {
+    return doSendOtp(userId, phone);
+  }
+
+  // 1. Reject if last code was sent < 1 minute ago
+  const { data: lastCode } = await supabaseAdmin
+    .from("otp_codes")
+    .select("created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (
+    lastCode &&
+    Date.now() - new Date(lastCode.created_at).getTime() < RATE_LIMIT_PER_MINUTE_MS
+  ) {
+    return { ok: false, reason: "rate_limit_minute" };
+  }
+
+  // 2. Reject if 5+ codes sent in the last hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: hourly } = await supabaseAdmin
+    .from("otp_codes")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", oneHourAgo);
+  if ((hourly ?? 0) >= RATE_LIMIT_PER_HOUR) {
+    return { ok: false, reason: "rate_limit_hour" };
+  }
+
+  return doSendOtp(userId, phone);
+}
+
+async function doSendOtp(userId: string, phone: string): Promise<SendOtpResult> {
   const code = generateCode();
   const expiresAt = new Date(Date.now() + OTP_TTL_SECONDS * 1000).toISOString();
 
@@ -36,6 +86,8 @@ export async function sendOtp(userId: string, phone: string): Promise<void> {
     // TODO: integrate Eskiz / Playmobile / Twilio
     console.warn(`[otp] SMS_PROVIDER=${process.env.SMS_PROVIDER} not implemented`);
   }
+
+  return { ok: true };
 }
 
 export type OtpVerifyResult =

@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenBody } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -21,7 +21,7 @@ export default async function QuizQuestionsPage({
   setRequestLocale(locale);
   const t = await getTranslations("quiz");
   const tc = await getTranslations("common");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "quiz_in_progress");
 
   const idx = Math.max(0, Math.min(QUIZ_QUESTIONS.length - 1, Number(n ?? 0) || 0));
   const q = QUIZ_QUESTIONS[idx];

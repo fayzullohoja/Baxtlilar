@@ -1,7 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { Screen, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
-import { requireUser } from "@/lib/auth/current-user";
+import { requireUserAtStep } from "@/lib/auth/current-user";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
@@ -14,7 +14,7 @@ export default async function ModerationRejectedPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("moderation");
-  const user = await requireUser(locale);
+  const user = await requireUserAtStep(locale, "verification_rejected");
 
   const { data: doc } = await supabaseAdmin
     .from("user_documents")

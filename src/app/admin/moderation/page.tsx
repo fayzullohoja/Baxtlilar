@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
+import { isAdmin, clearAdminCookie, requireAdmin } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatTile, StatusBadge } from "@/components/admin/shell";
@@ -115,7 +115,11 @@ export default async function ModerationListPage({
 
   async function bulkApprove(formData: FormData) {
     "use server";
-    const userIds = formData.getAll("user_id").map(String).filter(Boolean);
+    await requireAdmin();
+    const userIds = formData
+      .getAll("user_id")
+      .map(String)
+      .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
     if (userIds.length === 0) return;
     // Mark documents reviewed for all
     await supabaseAdmin
