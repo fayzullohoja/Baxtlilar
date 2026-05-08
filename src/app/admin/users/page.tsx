@@ -79,7 +79,7 @@ export default async function UsersListPage({
   let q = supabaseAdmin
     .from("users")
     .select(
-      "id, telegram_id, telegram_username, telegram_first_name, phone_number, language, lifecycle_state, verification_status, created_at",
+      "id, telegram_id, telegram_username, telegram_first_name, phone_number, language, lifecycle_state, verification_status, created_at, last_active_at",
       { count: "exact" },
     );
 
@@ -235,6 +235,7 @@ export default async function UsersListPage({
                     <th className="hidden px-5 py-2.5 md:table-cell">Telegram</th>
                     <th className="px-5 py-2.5">Lifecycle</th>
                     <th className="hidden px-5 py-2.5 lg:table-cell">Verification</th>
+                    <th className="hidden px-5 py-2.5 text-right md:table-cell">Активен</th>
                     <th className="px-5 py-2.5 text-right">Создан</th>
                     <th className="w-12 px-3 py-2.5"></th>
                   </tr>
@@ -316,6 +317,38 @@ export default async function UsersListPage({
                             tone={verificationBadge.tone}
                             withDot={false}
                           />
+                        </td>
+                        <td className="hidden px-5 py-3 text-right text-xs md:table-cell">
+                          {(() => {
+                            const lastActive = (
+                              u as { last_active_at?: string | null }
+                            ).last_active_at;
+                            if (!lastActive)
+                              return (
+                                <span className="text-[--admin-text-muted]">—</span>
+                              );
+                            const ms = Date.now() - new Date(lastActive).getTime();
+                            const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+                            const hours = Math.floor(ms / (60 * 60 * 1000));
+                            const text =
+                              days >= 1
+                                ? `${days} д назад`
+                                : hours >= 1
+                                  ? `${hours} ч назад`
+                                  : "недавно";
+                            return (
+                              <span
+                                style={{
+                                  color:
+                                    days > 30
+                                      ? "var(--admin-warn)"
+                                      : "var(--admin-text-2)",
+                                }}
+                              >
+                                {text}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-5 py-3 text-right text-xs text-[--admin-text-2]">
                           {formatDateTime(u.created_at)}

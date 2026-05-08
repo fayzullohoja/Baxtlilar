@@ -22,7 +22,31 @@ export async function getCurrentUser(): Promise<UserState | null> {
 export async function requireUser(locale: string): Promise<UserState> {
   const u = await getCurrentUser();
   if (!u) redirect(`/${locale}/onboarding/welcome`);
+
+  // Fire-and-forget last_active_at bump. Failures (column missing, network)
+  // must never block page render. Skipped if recently updated to avoid
+  // hammering DB on rapid navigation.
+  void bumpLastActive(u.id);
+
   return u;
+}
+
+const lastBumpCache = new Map<string, number>();
+const BUMP_COOLDOWN_MS = 60 * 1000;
+
+async function bumpLastActive(userId: string): Promise<void> {
+  const now = Date.now();
+  const last = lastBumpCache.get(userId);
+  if (last && now - last < BUMP_COOLDOWN_MS) return;
+  lastBumpCache.set(userId, now);
+  try {
+    await supabaseAdmin
+      .from("users")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", userId);
+  } catch {
+    // column may not exist yet (migration not applied) — silently skip
+  }
 }
 
 /**
