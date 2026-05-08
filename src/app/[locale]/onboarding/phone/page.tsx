@@ -12,8 +12,7 @@ import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
 import { sendOtp } from "@/lib/otp/service";
-
-const UZ_PHONE = /^\+998\d{9}$/;
+import { normalizeUzPhone } from "@/lib/phone";
 
 export default async function PhonePage({
   params,
@@ -37,9 +36,8 @@ export default async function PhonePage({
 
   async function submit(formData: FormData) {
     "use server";
-    const raw = String(formData.get("phone") ?? "").replace(/[^\d+]/g, "");
-    const phone = raw.startsWith("+") ? raw : `+998${raw.replace(/^998/, "")}`;
-    if (!UZ_PHONE.test(phone)) {
+    const phone = normalizeUzPhone(String(formData.get("phone") ?? ""));
+    if (!phone) {
       redirect(`/${locale}${ONBOARDING_PATHS.phone_input}?error=invalid`);
     }
     const result = await sendOtp(user.id, phone);
