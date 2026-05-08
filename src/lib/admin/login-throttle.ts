@@ -19,7 +19,8 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>();
 
-async function clientIp(): Promise<string> {
+async function clientIp(override?: string): Promise<string> {
+  if (override) return override;
   const h = await headers();
   return (
     h.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -28,12 +29,11 @@ async function clientIp(): Promise<string> {
   );
 }
 
-export async function isThrottled(): Promise<boolean> {
-  const ip = await clientIp();
+export async function isThrottled(ipOverride?: string): Promise<boolean> {
+  const ip = await clientIp(ipOverride);
   const b = buckets.get(ip);
   if (!b) return false;
   if (b.lockedUntil > Date.now()) return true;
-  // Cleanup expired window
   if (Date.now() - b.firstFailAt > WINDOW_MS) {
     buckets.delete(ip);
     return false;
@@ -41,8 +41,8 @@ export async function isThrottled(): Promise<boolean> {
   return false;
 }
 
-export async function recordLoginFailure(): Promise<void> {
-  const ip = await clientIp();
+export async function recordLoginFailure(ipOverride?: string): Promise<void> {
+  const ip = await clientIp(ipOverride);
   const now = Date.now();
   const b = buckets.get(ip);
   if (!b || now - b.firstFailAt > WINDOW_MS) {
@@ -55,7 +55,7 @@ export async function recordLoginFailure(): Promise<void> {
   }
 }
 
-export async function recordLoginSuccess(): Promise<void> {
-  const ip = await clientIp();
+export async function recordLoginSuccess(ipOverride?: string): Promise<void> {
+  const ip = await clientIp(ipOverride);
   buckets.delete(ip);
 }
