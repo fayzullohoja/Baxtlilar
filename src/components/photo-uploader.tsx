@@ -4,6 +4,11 @@ import { useRef, useState, useTransition } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/screen";
 import { compressImage } from "@/lib/uploads/compress-client";
 
+// Mirrors server-side limits — used by document + liveness (10MB documents
+// bucket). Profile photos have their own client component with 5MB limit.
+const MAX_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/heic", "image/webp"];
+
 export function PhotoUploader({
   uploadAction,
   labels,
@@ -38,19 +43,37 @@ export function PhotoUploader({
       return;
     }
     setError(null);
-    // Run client-side compression for big photos. Always non-blocking on user
-    // intent — failures fall back to the original file.
+
+    // Pre-flight MIME check — gives instant feedback for obviously wrong files
+    if (raw.type && !ALLOWED_MIME.includes(raw.type)) {
+      setError("Поддерживаются JPG, PNG, HEIC, WebP");
+      setFile(null);
+      setPreview(null);
+      return;
+    }
+
     setCompressing(true);
+    let final: File = raw;
     try {
-      const compressed = await compressImage(raw);
-      setFile(compressed);
-      setPreview(URL.createObjectURL(compressed));
+      final = await compressImage(raw);
     } catch {
-      setFile(raw);
-      setPreview(URL.createObjectURL(raw));
+      // fall through with original
     } finally {
       setCompressing(false);
     }
+
+    // Pre-flight size check — happens AFTER compression so users see the
+    // realistic post-compression size. Server still re-validates.
+    if (final.size > MAX_BYTES) {
+      const mb = (final.size / 1024 / 1024).toFixed(1);
+      setError(`Файл слишком большой (${mb} MB). Максимум 10 MB.`);
+      setFile(null);
+      setPreview(null);
+      return;
+    }
+
+    setFile(final);
+    setPreview(URL.createObjectURL(final));
   }
 
   function submit() {

@@ -3,6 +3,11 @@
 import { useRef, useState, useTransition } from "react";
 import { compressImage } from "@/lib/uploads/compress-client";
 
+// Mirrors src/lib/uploads/photos.ts limits — gives instant feedback before
+// the round-trip. Server still re-validates as defense-in-depth.
+const MAX_BYTES = 5 * 1024 * 1024;
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/heic", "image/webp"];
+
 export function PhotoSlot({
   previewUrl,
   uploadAction,
@@ -37,13 +42,28 @@ export function PhotoSlot({
   async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    // Reset input so picking the same file twice still triggers onChange
+    if (inputRef.current) inputRef.current.value = "";
     setError(null);
+
+    if (f.type && !ALLOWED_MIME.includes(f.type)) {
+      setError("Поддерживаются JPG, PNG, HEIC, WebP");
+      return;
+    }
+
     let upload: File = f;
     try {
       upload = await compressImage(f);
     } catch {
       // fall through with the original file
     }
+
+    if (upload.size > MAX_BYTES) {
+      const mb = (upload.size / 1024 / 1024).toFixed(1);
+      setError(`Файл слишком большой (${mb} MB). Максимум 5 MB.`);
+      return;
+    }
+
     const fd = new FormData();
     fd.append("file", upload);
     if (position != null) fd.append("position", String(position));
