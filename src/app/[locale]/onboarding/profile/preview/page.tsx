@@ -306,8 +306,18 @@ export default async function ProfilePreviewPage({
         </div>
       </ScreenBody>
       <ScreenFooter>
+        {sectionFilledCount < totalSections ? (
+          <p className="rounded-2xl bg-[--color-warn-bg] px-4 py-3 text-center text-xs text-[--color-warn]">
+            Заполните оставшиеся {totalSections - sectionFilledCount} раздел(а), чтобы продолжить
+          </p>
+        ) : null}
         <form action={confirm}>
-          <PrimaryButton type="submit">{t("preview_confirm")}</PrimaryButton>
+          <PrimaryButton
+            type="submit"
+            disabled={sectionFilledCount < totalSections}
+          >
+            {t("preview_confirm")}
+          </PrimaryButton>
         </form>
         <form action={editBasic}>
           <SecondaryButton type="submit">{tc("back")}</SecondaryButton>

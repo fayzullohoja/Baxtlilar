@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
 import { KeyboardShortcuts } from "@/components/admin/keyboard-shortcuts";
+import { notifyUserTelegram } from "@/lib/admin/notify";
 import { RejectForm } from "./reject-form";
 import { ImageViewer } from "./image-viewer";
 import { ResetForm } from "./reset-form";
@@ -140,6 +141,10 @@ export default async function ModerationDetailPage({
       "moderator approved",
       "admin",
     );
+    void notifyUserTelegram(
+      Number(user.telegram_id),
+      `🎉 <b>Анкета одобрена!</b>\n\nДобро пожаловать на Bakhtlilar. Вернитесь в приложение, чтобы заполнить профиль.`,
+    );
     redirect("/admin/moderation");
   }
 
@@ -163,6 +168,10 @@ export default async function ModerationDetailPage({
       },
       "moderator approved (and-next flow)",
       "admin",
+    );
+    void notifyUserTelegram(
+      Number(user.telegram_id),
+      `🎉 <b>Анкета одобрена!</b>\n\nДобро пожаловать на Bakhtlilar. Вернитесь в приложение, чтобы заполнить профиль.`,
     );
     // Find next oldest pending user (excluding the one we just approved — but it's no longer pending anyway)
     const { data: next } = await supabaseAdmin
@@ -197,6 +206,10 @@ export default async function ModerationDetailPage({
       },
       `moderator rejected: ${reason}`,
       "admin",
+    );
+    void notifyUserTelegram(
+      Number(user.telegram_id),
+      `📋 <b>Документы нужно переснять</b>\n\n${reason}\n\nОткройте приложение, чтобы загрузить новые фото.`,
     );
     redirect("/admin/moderation");
   }

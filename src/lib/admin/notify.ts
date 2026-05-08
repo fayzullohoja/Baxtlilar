@@ -35,6 +35,42 @@ export async function notifyAdminTelegram(text: string): Promise<void> {
   }
 }
 
+/**
+ * Sends a Telegram message to a specific user (their telegram_id).
+ * Used to close the moderation loop — when admin approves/rejects, the
+ * user gets immediate feedback in their TG client.
+ */
+export async function notifyUserTelegram(
+  telegramId: number,
+  text: string,
+): Promise<void> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return;
+  try {
+    const url = `https://api.telegram.org/bot${token}/sendMessage`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        chat_id: telegramId,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) {
+      // 403 means user blocked the bot — expected, log quietly
+      const body = await res.text();
+      if (res.status !== 403) {
+        console.warn(`[notify-user] TG ${res.status}: ${body.slice(0, 200)}`);
+      }
+    }
+  } catch (err) {
+    console.warn("[notify-user] failed:", err instanceof Error ? err.message : err);
+  }
+}
+
 export function buildSubmissionMessage(opts: {
   userId: string;
   name: string | null;
