@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie, requireAdmin } from "@/lib/admin/guard";
+import { VERIFICATION_LABELS as STATUS_BADGE } from "@/lib/admin/labels";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatTile, StatusBadge } from "@/components/admin/shell";
@@ -16,16 +17,6 @@ const STATUS_FILTERS = [
   { key: "all", label: "Все", tone: "default" as const },
 ];
 
-const STATUS_BADGE: Record<string, { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }> = {
-  pending_review: { label: "На проверку", tone: "warn" },
-  approved: { label: "Одобрен", tone: "success" },
-  rejected: { label: "Отклонён", tone: "danger" },
-  revoked: { label: "Отозван", tone: "danger" },
-  phone_verified: { label: "Телефон", tone: "info" },
-  documents_uploaded: { label: "Паспорт", tone: "info" },
-  liveness_uploaded: { label: "Selfie", tone: "info" },
-  not_started: { label: "Не начал", tone: "default" },
-};
 
 function timeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();

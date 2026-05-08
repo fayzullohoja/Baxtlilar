@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/admin/banned", label: "Забанены", match: "/admin/banned" },
   { href: "/admin/audit", label: "Журнал", match: "/admin/audit" },
   { href: "/admin/stats", label: "Аналитика", match: "/admin/stats" },
+  { href: "/admin/system", label: "Система", match: "/admin/system" },
 ];
 
 export function AdminShell({

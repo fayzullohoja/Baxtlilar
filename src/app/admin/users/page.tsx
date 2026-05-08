@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
+import { LIFECYCLE_LABELS, VERIFICATION_LABELS } from "@/lib/admin/labels";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
 
@@ -14,31 +15,6 @@ const LIFECYCLE_FILTERS = [
   { key: "blocked", label: "Заблокированы" },
   { key: "deleted", label: "Удалены" },
 ];
-
-const LIFECYCLE_BADGE: Record<
-  string,
-  { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }
-> = {
-  onboarding: { label: "Онбординг", tone: "info" },
-  active: { label: "Активный", tone: "success" },
-  paused: { label: "Пауза", tone: "warn" },
-  blocked: { label: "Заблокирован", tone: "danger" },
-  deleted: { label: "Удалён", tone: "default" },
-};
-
-const VERIFICATION_BADGE: Record<
-  string,
-  { label: string; tone: "default" | "warn" | "success" | "danger" | "info" }
-> = {
-  not_started: { label: "—", tone: "default" },
-  phone_verified: { label: "Телефон", tone: "info" },
-  documents_uploaded: { label: "Паспорт", tone: "info" },
-  liveness_uploaded: { label: "Selfie", tone: "info" },
-  pending_review: { label: "Pending", tone: "warn" },
-  approved: { label: "✓ Одобрен", tone: "success" },
-  rejected: { label: "Отклонён", tone: "danger" },
-  revoked: { label: "Отозван", tone: "danger" },
-};
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("ru-RU", {
@@ -298,12 +274,12 @@ export default async function UsersListPage({
                       .slice(0, 1)
                       .toUpperCase();
                     const lifecycleBadge =
-                      LIFECYCLE_BADGE[u.lifecycle_state] ?? {
+                      LIFECYCLE_LABELS[u.lifecycle_state] ?? {
                         label: u.lifecycle_state,
                         tone: "default" as const,
                       };
                     const verificationBadge =
-                      VERIFICATION_BADGE[u.verification_status] ?? {
+                      VERIFICATION_LABELS[u.verification_status] ?? {
                         label: u.verification_status,
                         tone: "default" as const,
                       };

@@ -1,24 +1,19 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
+import { TRIGGER_COLORS, FIELD_LABELS } from "@/lib/admin/labels";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AdminShell } from "@/components/admin/shell";
 
 const PAGE_SIZE = 100;
 
 const TRIGGER_LABEL: Record<string, { label: string; color: string }> = {
-  user: { label: "юзер", color: "var(--admin-info)" },
-  admin: { label: "admin", color: "var(--admin-accent-deep)" },
-  system: { label: "system", color: "var(--admin-text-muted)" },
+  user: { label: "юзер", color: TRIGGER_COLORS.user },
+  admin: { label: "admin", color: TRIGGER_COLORS.admin },
+  system: { label: "system", color: TRIGGER_COLORS.system },
 };
 
-const FIELD_LABEL: Record<string, string> = {
-  lifecycle_state: "lifecycle",
-  onboarding_step: "onboarding",
-  verification_status: "verification",
-  profile_completion: "profile",
-  quiz_completion: "quiz",
-};
+const FIELD_LABEL = FIELD_LABELS;
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("ru-RU", {
