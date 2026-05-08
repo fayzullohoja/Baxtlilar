@@ -51,10 +51,26 @@ export default async function AuditLogPage({
   if (!(await isAdmin())) redirect("/admin/login");
 
   const sp = await searchParams;
+  // Whitelist all enum-like params — junk values fall back to "all"
+  const VALID_RANGES = new Set(["all", "24h", "7d", "30d"]);
+  const VALID_TRIGGERS = new Set(["all", "user", "admin", "system"]);
+  const VALID_FIELDS = new Set([
+    "all",
+    "lifecycle_state",
+    "onboarding_step",
+    "verification_status",
+    "profile_completion",
+    "quiz_completion",
+  ]);
+
   const userFilter = sp.user ?? "";
-  const triggerFilter = sp.trigger ?? "all";
-  const range = sp.range ?? "all"; // all | 24h | 7d | 30d
-  const fieldFilter = sp.field ?? "all";
+  const triggerFilter = VALID_TRIGGERS.has(sp.trigger ?? "")
+    ? sp.trigger ?? "all"
+    : "all";
+  const range = VALID_RANGES.has(sp.range ?? "") ? sp.range ?? "all" : "all";
+  const fieldFilter = VALID_FIELDS.has(sp.field ?? "")
+    ? sp.field ?? "all"
+    : "all";
   const reasonSearch = (sp.q ?? "").trim();
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;

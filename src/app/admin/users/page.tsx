@@ -39,9 +39,22 @@ export default async function UsersListPage({
   if (!(await isAdmin())) redirect("/admin/login");
 
   const sp = await searchParams;
-  const lifecycle = sp.lifecycle ?? "all";
+  const VALID_LIFECYCLES = new Set([
+    "all",
+    "onboarding",
+    "active",
+    "paused",
+    "blocked",
+    "deleted",
+  ]);
+  const lifecycle = VALID_LIFECYCLES.has(sp.lifecycle ?? "")
+    ? sp.lifecycle ?? "all"
+    : "all";
   const search = (sp.q ?? "").trim();
-  const langFilter = sp.lang ?? "all"; // all | ru | uz
+  const VALID_LANGS = new Set(["all", "ru", "uz"]);
+  const langFilter = VALID_LANGS.has(sp.lang ?? "")
+    ? sp.lang ?? "all"
+    : "all";
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 

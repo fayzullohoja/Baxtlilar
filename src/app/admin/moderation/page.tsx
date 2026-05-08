@@ -47,7 +47,15 @@ export default async function ModerationListPage({
   if (!(await isAdmin())) redirect("/admin/login");
 
   const sp = await searchParams;
-  const statusFilter = sp.status ?? "pending_review";
+  const VALID_STATUSES = new Set([
+    "pending_review",
+    "approved",
+    "rejected",
+    "all",
+  ]);
+  const statusFilter = VALID_STATUSES.has(sp.status ?? "")
+    ? sp.status ?? "pending_review"
+    : "pending_review";
   const search = (sp.q ?? "").trim();
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
