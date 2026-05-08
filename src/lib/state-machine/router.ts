@@ -31,6 +31,7 @@ export const ONBOARDING_PATHS: Record<OnboardingStep, string> = {
  */
 export function nextScreenFor(user: UserState): string {
   if (user.lifecycle_state === "blocked") return "/blocked";
+  if (user.lifecycle_state === "deleted") return "/blocked"; // soft-deleted accounts get same UX
   if (user.lifecycle_state === "active") return "/main";
   if (user.lifecycle_state === "paused") return "/main"; // paused-mode handled inside /main
   return ONBOARDING_PATHS[user.onboarding_step];

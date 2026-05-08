@@ -17,6 +17,7 @@ export default async function MainPage({
 
   // Lifecycle gate — only active/paused users see /main.
   if (user.lifecycle_state === "blocked") redirect(`/${locale}/blocked`);
+  if (user.lifecycle_state === "deleted") redirect(`/${locale}/blocked`);
   if (user.lifecycle_state === "onboarding") {
     redirect(`/${locale}/onboarding/welcome`);
   }

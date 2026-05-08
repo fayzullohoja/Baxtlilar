@@ -67,6 +67,7 @@ export async function requireUserAtStep(
 ): Promise<UserState> {
   const u = await requireUser(locale);
   if (u.lifecycle_state === "blocked") redirect(`/${locale}/blocked`);
+  if (u.lifecycle_state === "deleted") redirect(`/${locale}/blocked`);
   if (u.lifecycle_state === "active") redirect(`/${locale}/main`);
   if (u.onboarding_step !== expectedStep) {
     redirect(`/${locale}${nextScreenFor(u)}`);
