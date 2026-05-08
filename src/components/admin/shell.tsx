@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { Logo } from "@/components/brand/logo";
 
 const NAV_ITEMS = [
+  { href: "/admin", label: "Дашборд", match: "/admin" },
   { href: "/admin/moderation", label: "Очередь", match: "/admin/moderation" },
   { href: "/admin/users", label: "Все юзеры", match: "/admin/users" },
   { href: "/admin/banned", label: "Забанены", match: "/admin/banned" },
@@ -10,6 +11,15 @@ const NAV_ITEMS = [
   { href: "/admin/stats", label: "Аналитика", match: "/admin/stats" },
   { href: "/admin/system", label: "Система", match: "/admin/system" },
 ];
+
+/**
+ * Whether the current page (`active`) matches a nav item's `match` prefix.
+ * Treats "/admin" specially so it doesn't claim every /admin/* route.
+ */
+function isActiveMatch(active: string, match: string): boolean {
+  if (match === "/admin") return active === "/admin";
+  return active.startsWith(match);
+}
 
 export function AdminShell({
   children,
@@ -64,7 +74,7 @@ export function AdminShell({
 
             <nav className="hidden items-center gap-1 sm:flex">
               {NAV_ITEMS.map((item) => {
-                const active = detectedActive.startsWith(item.match);
+                const active = isActiveMatch(detectedActive, item.match);
                 return (
                   <Link
                     key={item.href}
@@ -105,7 +115,7 @@ export function AdminShell({
         {/* Mobile nav row */}
         <nav className="flex items-center gap-1 overflow-x-auto border-t border-[--admin-border] px-4 py-2 sm:hidden">
           {NAV_ITEMS.map((item) => {
-            const active = detectedActive.startsWith(item.match);
+            const active = isActiveMatch(detectedActive, item.match);
             return (
               <Link
                 key={item.href}
