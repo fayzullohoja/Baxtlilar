@@ -11,9 +11,11 @@ import { ResetForm } from "./reset-form";
 
 async function signedDoc(path: string | null | undefined) {
   if (!path) return null;
+  // 4-hour TTL — survives lunch breaks during moderation. Short enough that
+  // a casually-shared signed URL becomes worthless quickly.
   const { data } = await supabaseAdmin.storage
     .from("documents")
-    .createSignedUrl(path, 60 * 60);
+    .createSignedUrl(path, 4 * 60 * 60);
   return data?.signedUrl ?? null;
 }
 

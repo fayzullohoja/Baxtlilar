@@ -6,6 +6,11 @@ export const dynamic = "force-dynamic";
 interface HealthResponse {
   status: "ok" | "degraded" | "down";
   uptime_ms: number;
+  build: {
+    commit: string | null;
+    branch: string | null;
+    deployment_id: string | null;
+  };
   checks: {
     db: { ok: boolean; latency_ms?: number; error?: string };
   };
@@ -17,6 +22,12 @@ const startedAt = Date.now();
 export async function GET() {
   const env =
     (process.env.VERCEL_ENV as HealthResponse["env"]) ?? "development";
+
+  const build = {
+    commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+    branch: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+    deployment_id: process.env.VERCEL_DEPLOYMENT_ID ?? null,
+  };
 
   // Cheap DB ping — just count from a small table
   const dbStart = Date.now();
@@ -46,6 +57,7 @@ export async function GET() {
   const body: HealthResponse = {
     status,
     uptime_ms: Date.now() - startedAt,
+    build,
     checks: {
       db: dbOk
         ? { ok: true, latency_ms: dbLatency }

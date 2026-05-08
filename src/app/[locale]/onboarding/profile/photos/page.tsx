@@ -35,9 +35,11 @@ export default async function PhotosPage({
         ? "Неверный формат фото. Поддерживается JPG, PNG, HEIC, WebP."
         : error === "size"
           ? "Файл слишком большой. Максимум 5 МБ."
-          : error === "upload"
-            ? "Не удалось загрузить фото. Попробуйте снова."
-            : null;
+          : error === "limit"
+            ? "Достигнут лимит дополнительных фото — максимум 4"
+            : error === "upload"
+              ? "Не удалось загрузить фото. Попробуйте снова."
+              : null;
 
   const { data: photos } = await supabaseAdmin
     .from("profile_photos")
@@ -96,7 +98,9 @@ export default async function PhotosPage({
         ? "mime"
         : msg.includes("too large")
           ? "size"
-          : "upload";
+          : msg.includes("limit reached")
+            ? "limit"
+            : "upload";
       redirect(`/${locale}${ONBOARDING_PATHS.profile_photos}?error=${code}`);
     }
     revalidatePath(`/${locale}${ONBOARDING_PATHS.profile_photos}`);
