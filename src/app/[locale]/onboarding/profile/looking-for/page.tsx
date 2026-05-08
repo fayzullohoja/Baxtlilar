@@ -11,10 +11,13 @@ import { LOOKING_CITY_SCOPE, LOOKING_MARITAL, LOOKING_CHILDREN, PARTNER_QUALITIE
 
 export default async function LookingForPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("profile");
   const tc = await getTranslations("common");
@@ -55,6 +58,11 @@ export default async function LookingForPage({
       <ScreenHeader title={t("looking_title")} />
       <ScreenBody>
         <form action={save} className="flex flex-col gap-4">
+          {error === "invalid" ? (
+            <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
+              Заполните все поля. Возрастной диапазон 18–80, минимум 3 качества партнёра (макс. 5).
+            </p>
+          ) : null}
           <Field label={t("looking_gender")}>
             <RadioList
               name="looking_for_gender"

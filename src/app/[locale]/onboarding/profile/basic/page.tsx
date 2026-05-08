@@ -155,13 +155,15 @@ export default async function ProfileBasicPage({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  // <div> not <label> — RadioPill children render their own <label>, and
+  // nested labels break radio clicking (only first option becomes selectable).
   return (
-    <label className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
         {label}
-      </span>
+      </p>
       {children}
-    </label>
+    </div>
   );
 }
 

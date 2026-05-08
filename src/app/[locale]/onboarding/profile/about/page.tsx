@@ -10,10 +10,13 @@ import { aboutSchema } from "@/lib/profile/schemas";
 
 export default async function AboutPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("profile");
   const tc = await getTranslations("common");
@@ -46,6 +49,11 @@ export default async function AboutPage({
       <ScreenHeader title={t("about_title")} />
       <ScreenBody>
         <form action={save} className="flex flex-col gap-4">
+          {error === "invalid" ? (
+            <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
+              «О себе» должно быть 50–500 символов; «о ценностях» — 30–300.
+            </p>
+          ) : null}
           <Field label={t("about_me")} hint={t("about_me_hint") + " (50–500)"}>
             <TextArea
               name="about_me"

@@ -147,16 +147,18 @@ export function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  // Plain <div>, not <label> — children may render their own <label>s
+  // (RadioList, CheckboxList), and nested labels break radio/checkbox clicks.
   return (
-    <label className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
         {label}
-      </span>
+      </p>
       {children}
       {hint ? (
-        <span className="text-xs text-[--color-ink-muted]">{hint}</span>
+        <p className="text-xs text-[--color-ink-muted]">{hint}</p>
       ) : null}
-    </label>
+    </div>
   );
 }
 

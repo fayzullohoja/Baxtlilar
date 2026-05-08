@@ -11,10 +11,13 @@ import { EDUCATION_LEVELS, WORK_INDUSTRIES, EMPLOYMENT_STATUSES, FINANCIAL_STABI
 
 export default async function EducationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("profile");
   const tc = await getTranslations("common");
@@ -51,6 +54,11 @@ export default async function EducationPage({
       <ScreenHeader title={t("education_title")} />
       <ScreenBody>
         <form action={save} className="flex flex-col gap-4">
+          {error === "invalid" ? (
+            <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
+              Заполните все обязательные поля.
+            </p>
+          ) : null}
           <Field label={t("education_level")}>
             <Select name="education_level" defaultValue={existing?.education_level ?? ""} required>
               <option value="" disabled>—</option>

@@ -11,10 +11,13 @@ import { HAS_CHILDREN, WANTS_CHILDREN, MARRIAGE_TIMELINE, RELOCATION } from "@/l
 
 export default async function FamilyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("profile");
   const tc = await getTranslations("common");
@@ -48,6 +51,11 @@ export default async function FamilyPage({
       <ScreenHeader title={t("family_title")} />
       <ScreenBody>
         <form action={save} className="flex flex-col gap-4">
+          {error === "invalid" ? (
+            <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
+              Заполните, пожалуйста, все четыре пункта ниже.
+            </p>
+          ) : null}
           <Field label={t("has_children")}>
             <RadioList
               name="has_children"

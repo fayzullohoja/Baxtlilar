@@ -13,19 +13,22 @@ export function Field({
   error?: string | null;
   children: React.ReactNode;
 }) {
+  // Must NOT be <label> — many inputs we wrap (RadioList, CheckboxList) render
+  // their own <label> per option, and nested <label> elements break clicking
+  // any choice but the first one.
   return (
-    <label className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
         {label}
-      </span>
+      </p>
       {children}
       {hint ? (
-        <span className="text-xs text-[--color-ink-muted]">{hint}</span>
+        <p className="text-xs text-[--color-ink-muted]">{hint}</p>
       ) : null}
       {error ? (
-        <span className="text-xs text-[--color-danger]">{error}</span>
+        <p className="text-xs text-[--color-danger]">{error}</p>
       ) : null}
-    </label>
+    </div>
   );
 }
 

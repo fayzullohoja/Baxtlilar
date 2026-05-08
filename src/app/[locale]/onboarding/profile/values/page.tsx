@@ -11,10 +11,13 @@ import { RELIGIOSITY, SMOKING, ALCOHOL, INTERESTS } from "@/lib/profile/options"
 
 export default async function ValuesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const t = await getTranslations("profile");
   const tc = await getTranslations("common");
@@ -48,6 +51,11 @@ export default async function ValuesPage({
       <ScreenHeader title={t("values_title")} />
       <ScreenBody>
         <form action={save} className="flex flex-col gap-4">
+          {error === "invalid" ? (
+            <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
+              Выберите ответ в каждом разделе. Минимум 1 интерес — максимум 5.
+            </p>
+          ) : null}
           <Field label={t("religiosity")}>
             <RadioList
               name="religiosity_level"
