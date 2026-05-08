@@ -23,19 +23,34 @@ export async function bootstrapFromTelegram(initData?: string): Promise<string> 
   // Upsert by telegram_id
   const { data: existing } = await supabaseAdmin
     .from("users")
-    .select("id")
+    .select("id, lifecycle_state")
     .eq("telegram_id", tgUser.id)
     .maybeSingle();
 
   let userId: string;
   if (existing) {
     userId = existing.id;
+    // If user soft-deleted themselves earlier, revive them: reset back to
+    // onboarding so they can start fresh. Their old data was wiped during
+    // delete; this gives them a way back instead of being stuck on /blocked.
+    const isReviving = existing.lifecycle_state === "deleted";
     await supabaseAdmin
       .from("users")
       .update({
         telegram_username: tgUser.username ?? null,
         telegram_first_name: tgUser.first_name ?? null,
         telegram_last_name: tgUser.last_name ?? null,
+        ...(isReviving
+          ? {
+              lifecycle_state: "onboarding",
+              onboarding_step: "language",
+              verification_status: "not_started",
+              profile_completion: "not_started",
+              quiz_completion: "not_started",
+              blocked_at: null,
+              blocked_reason: null,
+            }
+          : {}),
       })
       .eq("id", userId);
   } else {
