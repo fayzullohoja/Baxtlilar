@@ -54,6 +54,20 @@ export default async function SettingsPage({
     redirect(`/${locale}/main`);
   }
 
+  async function clearPhotos() {
+    "use server";
+    const { data: files } = await supabaseAdmin.storage
+      .from("profile-photos")
+      .list(user.id);
+    if (files && files.length > 0) {
+      await supabaseAdmin.storage
+        .from("profile-photos")
+        .remove(files.map((f) => `${user.id}/${f.name}`));
+    }
+    await supabaseAdmin.from("profile_photos").delete().eq("user_id", user.id);
+    redirect(`/${locale}/settings`);
+  }
+
   async function deleteAccount() {
     "use server";
     // Wipe all storage objects
@@ -124,6 +138,22 @@ export default async function SettingsPage({
                 <SecondaryButton type="submit">Поставить на паузу</SecondaryButton>
               </form>
             )}
+          </div>
+        </section>
+
+        <section className="mt-5 overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
+          <div className="border-b border-[--color-line-soft] px-5 py-3">
+            <p className="text-sm font-semibold text-[--color-plum]">
+              Стереть все фото
+            </p>
+            <p className="mt-1 text-xs text-[--color-ink-2]">
+              Удалит все ваши профильные фото из приложения. Анкета и аккаунт сохранятся — нужно будет загрузить новые фото.
+            </p>
+          </div>
+          <div className="px-5 py-4">
+            <form action={clearPhotos}>
+              <SecondaryButton type="submit">Удалить все фото</SecondaryButton>
+            </form>
           </div>
         </section>
 
