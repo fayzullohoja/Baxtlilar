@@ -52,13 +52,19 @@ function formatDateTime(iso: string): string {
 export default async function UsersListPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lifecycle?: string; q?: string; page?: string }>;
+  searchParams: Promise<{
+    lifecycle?: string;
+    q?: string;
+    page?: string;
+    lang?: string;
+  }>;
 }) {
   if (!(await isAdmin())) redirect("/admin/login");
 
   const sp = await searchParams;
   const lifecycle = sp.lifecycle ?? "all";
   const search = (sp.q ?? "").trim();
+  const langFilter = sp.lang ?? "all"; // all | ru | uz
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -85,6 +91,10 @@ export default async function UsersListPage({
 
   if (lifecycle !== "all") {
     q = q.eq("lifecycle_state", lifecycle);
+  }
+
+  if (langFilter === "ru" || langFilter === "uz") {
+    q = q.eq("language", langFilter);
   }
 
   if (search) {
@@ -132,12 +142,19 @@ export default async function UsersListPage({
     redirect("/admin/login");
   }
 
-  function buildHref(opts: { lifecycle?: string; q?: string; page?: number }) {
+  function buildHref(opts: {
+    lifecycle?: string;
+    q?: string;
+    lang?: string;
+    page?: number;
+  }) {
     const p = new URLSearchParams();
     const newLife = opts.lifecycle ?? lifecycle;
     if (newLife !== "all") p.set("lifecycle", newLife);
     const newSearch = opts.q ?? search;
     if (newSearch) p.set("q", newSearch);
+    const newLang = opts.lang ?? langFilter;
+    if (newLang !== "all") p.set("lang", newLang);
     if (opts.page && opts.page > 1) p.set("page", String(opts.page));
     const qs = p.toString();
     return `/admin/users${qs ? `?${qs}` : ""}`;
@@ -187,9 +204,43 @@ export default async function UsersListPage({
             })}
           </div>
 
+          <div
+            role="tablist"
+            aria-label="lang"
+            className="inline-flex items-center gap-1 rounded-lg p-1"
+            style={{ backgroundColor: "var(--admin-surface-2)" }}
+          >
+            {[
+              { key: "all", label: "Все" },
+              { key: "ru", label: "RU" },
+              { key: "uz", label: "UZ" },
+            ].map((l) => {
+              const active = langFilter === l.key;
+              return (
+                <Link
+                  key={l.key}
+                  href={buildHref({ lang: l.key, page: 1 })}
+                  role="tab"
+                  aria-selected={active}
+                  className={
+                    "inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition " +
+                    (active
+                      ? "bg-white text-[--admin-text] shadow-[var(--admin-shadow-sm)]"
+                      : "text-[--admin-text-2] hover:text-[--admin-text]")
+                  }
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
+          </div>
+
           <form className="flex items-center gap-2" action="/admin/users">
             {lifecycle !== "all" ? (
               <input type="hidden" name="lifecycle" value={lifecycle} />
+            ) : null}
+            {langFilter !== "all" ? (
+              <input type="hidden" name="lang" value={langFilter} />
             ) : null}
             <div className="relative">
               <svg

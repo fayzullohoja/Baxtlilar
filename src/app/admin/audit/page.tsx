@@ -50,6 +50,7 @@ export default async function AuditLogPage({
     page?: string;
     range?: string;
     field?: string;
+    q?: string;
   }>;
 }) {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -59,6 +60,7 @@ export default async function AuditLogPage({
   const triggerFilter = sp.trigger ?? "all";
   const range = sp.range ?? "all"; // all | 24h | 7d | 30d
   const fieldFilter = sp.field ?? "all";
+  const reasonSearch = (sp.q ?? "").trim();
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -71,6 +73,10 @@ export default async function AuditLogPage({
   if (userFilter) q = q.eq("user_id", userFilter);
   if (triggerFilter !== "all") q = q.eq("triggered_by", triggerFilter);
   if (fieldFilter !== "all") q = q.eq("field", fieldFilter);
+  if (reasonSearch) {
+    const safe = reasonSearch.replace(/[%,]/g, " ");
+    q = q.ilike("reason", `%${safe}%`);
+  }
 
   if (range !== "all") {
     const hours = range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30;
@@ -114,6 +120,7 @@ export default async function AuditLogPage({
     user?: string;
     range?: string;
     field?: string;
+    q?: string;
     page?: number;
   }) {
     const p = new URLSearchParams();
@@ -125,6 +132,8 @@ export default async function AuditLogPage({
     if (newRange !== "all") p.set("range", newRange);
     const newField = opts.field ?? fieldFilter;
     if (newField !== "all") p.set("field", newField);
+    const newReason = opts.q ?? reasonSearch;
+    if (newReason) p.set("q", newReason);
     if (opts.page && opts.page > 1) p.set("page", String(opts.page));
     const qs = p.toString();
     return `/admin/audit${qs ? `?${qs}` : ""}`;
@@ -240,24 +249,51 @@ export default async function AuditLogPage({
             </div>
           </div>
 
-          {userFilter ? (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-[--admin-text-muted]">Юзер:</span>
-              <span className="font-mono text-[--admin-text]">
-                {userMap.get(userFilter) ?? userFilter.slice(0, 8)}
-              </span>
-              <Link
-                href={buildHref({ user: "", page: 1 })}
-                className="text-[--admin-text-muted] hover:text-[--admin-text]"
-              >
-                ×
-              </Link>
-            </div>
-          ) : (
-            <p className="text-xs text-[--admin-text-muted]">
-              Всего записей: <span className="font-semibold text-[--admin-text]">{totalCount}</span>
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            <form className="flex items-center gap-2" action="/admin/audit">
+              {triggerFilter !== "all" ? (
+                <input type="hidden" name="trigger" value={triggerFilter} />
+              ) : null}
+              {fieldFilter !== "all" ? (
+                <input type="hidden" name="field" value={fieldFilter} />
+              ) : null}
+              {range !== "all" ? (
+                <input type="hidden" name="range" value={range} />
+              ) : null}
+              {userFilter ? (
+                <input type="hidden" name="user" value={userFilter} />
+              ) : null}
+              <input
+                type="search"
+                name="q"
+                defaultValue={reasonSearch}
+                placeholder="Поиск по причине…"
+                className="h-8 w-44 rounded-md border border-[--admin-border] bg-white px-2 text-sm text-[--admin-text] placeholder:text-[--admin-text-muted]"
+              />
+              {reasonSearch ? (
+                <Link
+                  href={buildHref({ q: "", page: 1 })}
+                  className="text-xs text-[--admin-text-muted] hover:text-[--admin-text]"
+                >
+                  ×
+                </Link>
+              ) : null}
+            </form>
+            {userFilter ? (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[--admin-text-muted]">Юзер:</span>
+                <span className="font-mono text-[--admin-text]">
+                  {userMap.get(userFilter) ?? userFilter.slice(0, 8)}
+                </span>
+                <Link
+                  href={buildHref({ user: "", page: 1 })}
+                  className="text-[--admin-text-muted] hover:text-[--admin-text]"
+                >
+                  ×
+                </Link>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {items.length === 0 ? (
