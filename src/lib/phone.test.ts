@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeUzPhone } from "./phone";
+import { normalizeUzPhone, formatUzPhone } from "./phone";
 
 describe("normalizeUzPhone", () => {
   it("accepts already-formatted +998 number", () => {
@@ -40,5 +40,22 @@ describe("normalizeUzPhone", () => {
 
   it("handles strings with leading/trailing whitespace", () => {
     expect(normalizeUzPhone("  +998 90 123 45 67  ")).toBe("+998901234567");
+  });
+});
+
+describe("formatUzPhone", () => {
+  it("formats valid E.164 phone with spaces", () => {
+    expect(formatUzPhone("+998901234567")).toBe("+998 90 123 45 67");
+  });
+
+  it("returns dash for null/undefined/empty", () => {
+    expect(formatUzPhone(null)).toBe("—");
+    expect(formatUzPhone(undefined)).toBe("—");
+    expect(formatUzPhone("")).toBe("—");
+  });
+
+  it("returns input unchanged if not Uzbek E.164 format", () => {
+    expect(formatUzPhone("+12025550100")).toBe("+12025550100");
+    expect(formatUzPhone("not-a-phone")).toBe("not-a-phone");
   });
 });

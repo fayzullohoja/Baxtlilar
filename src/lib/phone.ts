@@ -34,3 +34,14 @@ export function normalizeUzPhone(raw: string): string | null {
   // Most UZ mobile operators start with 9 or 33 or 88. We accept anything 9 numeric.
   return `+${body}`;
 }
+
+/**
+ * Display-only formatting: "+998 90 123 45 67"
+ * Returns the original string unchanged if it doesn't match E.164 +998.
+ */
+export function formatUzPhone(e164: string | null | undefined): string {
+  if (!e164) return "—";
+  const m = e164.match(/^\+998(\d{2})(\d{3})(\d{2})(\d{2})$/);
+  if (!m) return e164;
+  return `+998 ${m[1]} ${m[2]} ${m[3]} ${m[4]}`;
+}

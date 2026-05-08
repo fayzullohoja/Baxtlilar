@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { LIFECYCLE_LABELS, VERIFICATION_LABELS } from "@/lib/admin/labels";
+import { formatUzPhone } from "@/lib/phone";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
 
@@ -318,13 +319,13 @@ export default async function UsersListPage({
                                 {u.telegram_first_name ?? "Без имени"}
                               </p>
                               <p className="truncate text-xs text-[--admin-text-muted] sm:hidden">
-                                {u.phone_number ?? "—"}
+                                {formatUzPhone(u.phone_number)}
                               </p>
                             </div>
                           </Link>
                         </td>
                         <td className="hidden px-5 py-3 font-mono text-xs text-[--admin-text-2] sm:table-cell">
-                          {u.phone_number ?? "—"}
+                          {formatUzPhone(u.phone_number)}
                         </td>
                         <td className="hidden px-5 py-3 text-xs md:table-cell">
                           {u.telegram_username ? (
