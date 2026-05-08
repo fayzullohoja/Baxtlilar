@@ -45,10 +45,16 @@
   --shadow-soft: 0 4px 16px rgba(74, 44, 53, 0.06);
   --shadow-card: 0 8px 24px -8px rgba(74, 44, 53, 0.08);
   --shadow-lift: 0 16px 40px -16px rgba(74, 44, 53, 0.16);
+}
 
-  /* ── Admin-specific palette ──────────────────────────────────────────
-     Cool, neutral, professional tones for /admin/*. Brand pink stays as
-     primary-accent only (CTAs); base UI is slate/gray for tool-feel. */
+/* ── Admin-specific palette ──────────────────────────────────────────
+   Cool, neutral, professional tones for /admin/*. Brand pink stays as
+   primary-accent only (CTAs); base UI is slate/gray for tool-feel.
+
+   These live OUTSIDE `@theme` because most are referenced via inline
+   `style={{}}` rather than Tailwind utility classes — Tailwind v4 in
+   CSS-first mode tree-shakes unreferenced @theme tokens. */
+:root {
   --admin-bg: #f7f8fa;
   --admin-surface: #ffffff;
   --admin-surface-2: #fafbfc;
