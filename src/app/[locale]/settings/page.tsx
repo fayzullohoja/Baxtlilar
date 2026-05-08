@@ -24,6 +24,16 @@ export default async function SettingsPage({
   setRequestLocale(locale);
   const user = await requireUser(locale);
 
+  // Settings only available to active/paused users (post-onboarding).
+  // Blocked → /blocked. Deleted → welcome (session is invalid post-delete).
+  if (user.lifecycle_state === "blocked") redirect(`/${locale}/blocked`);
+  if (user.lifecycle_state === "onboarding") {
+    redirect(`/${locale}/onboarding/welcome`);
+  }
+  if (user.lifecycle_state === "deleted") {
+    redirect(`/${locale}/onboarding/welcome`);
+  }
+
   async function pause() {
     "use server";
     await transition(

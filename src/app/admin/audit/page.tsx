@@ -44,13 +44,19 @@ function timeAgo(iso: string): string {
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ user?: string; trigger?: string; page?: string }>;
+  searchParams: Promise<{
+    user?: string;
+    trigger?: string;
+    page?: string;
+    range?: string;
+  }>;
 }) {
   if (!(await isAdmin())) redirect("/admin/login");
 
   const sp = await searchParams;
   const userFilter = sp.user ?? "";
   const triggerFilter = sp.trigger ?? "all";
+  const range = sp.range ?? "all"; // all | 24h | 7d | 30d
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -62,6 +68,13 @@ export default async function AuditLogPage({
 
   if (userFilter) q = q.eq("user_id", userFilter);
   if (triggerFilter !== "all") q = q.eq("triggered_by", triggerFilter);
+
+  if (range !== "all") {
+    const hours = range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30;
+    // eslint-disable-next-line react-hooks/purity -- server component, request-time clock
+    const sinceMs = Date.now() - hours * 60 * 60 * 1000;
+    q = q.gte("created_at", new Date(sinceMs).toISOString());
+  }
 
   const { data: rows, count } = await q
     .order("created_at", { ascending: false })
@@ -93,12 +106,19 @@ export default async function AuditLogPage({
     redirect("/admin/login");
   }
 
-  function buildHref(opts: { trigger?: string; user?: string; page?: number }) {
+  function buildHref(opts: {
+    trigger?: string;
+    user?: string;
+    range?: string;
+    page?: number;
+  }) {
     const p = new URLSearchParams();
     const newTrigger = opts.trigger ?? triggerFilter;
     if (newTrigger !== "all") p.set("trigger", newTrigger);
     const newUser = opts.user ?? userFilter;
     if (newUser) p.set("user", newUser);
+    const newRange = opts.range ?? range;
+    if (newRange !== "all") p.set("range", newRange);
     if (opts.page && opts.page > 1) p.set("page", String(opts.page));
     const qs = p.toString();
     return `/admin/audit${qs ? `?${qs}` : ""}`;
@@ -113,36 +133,71 @@ export default async function AuditLogPage({
     >
       <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
         <div className="flex flex-col gap-3 border-b border-[--admin-border] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* Trigger filter */}
-          <div
-            role="tablist"
-            className="inline-flex items-center gap-1 rounded-lg p-1"
-            style={{ backgroundColor: "var(--admin-surface-2)" }}
-          >
-            {[
-              { key: "all", label: "Все" },
-              { key: "user", label: "Юзер" },
-              { key: "admin", label: "Админ" },
-              { key: "system", label: "Система" },
-            ].map((t) => {
-              const active = triggerFilter === t.key;
-              return (
-                <Link
-                  key={t.key}
-                  href={buildHref({ trigger: t.key, page: 1 })}
-                  role="tab"
-                  aria-selected={active}
-                  className={
-                    "inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition " +
-                    (active
-                      ? "bg-white text-[--admin-text] shadow-[var(--admin-shadow-sm)]"
-                      : "text-[--admin-text-2] hover:text-[--admin-text]")
-                  }
-                >
-                  {t.label}
-                </Link>
-              );
-            })}
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              role="tablist"
+              aria-label="trigger"
+              className="inline-flex items-center gap-1 rounded-lg p-1"
+              style={{ backgroundColor: "var(--admin-surface-2)" }}
+            >
+              {[
+                { key: "all", label: "Все" },
+                { key: "user", label: "Юзер" },
+                { key: "admin", label: "Админ" },
+                { key: "system", label: "Система" },
+              ].map((t) => {
+                const active = triggerFilter === t.key;
+                return (
+                  <Link
+                    key={t.key}
+                    href={buildHref({ trigger: t.key, page: 1 })}
+                    role="tab"
+                    aria-selected={active}
+                    className={
+                      "inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition " +
+                      (active
+                        ? "bg-white text-[--admin-text] shadow-[var(--admin-shadow-sm)]"
+                        : "text-[--admin-text-2] hover:text-[--admin-text]")
+                    }
+                  >
+                    {t.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div
+              role="tablist"
+              aria-label="period"
+              className="inline-flex items-center gap-1 rounded-lg p-1"
+              style={{ backgroundColor: "var(--admin-surface-2)" }}
+            >
+              {[
+                { key: "all", label: "Всё время" },
+                { key: "24h", label: "24ч" },
+                { key: "7d", label: "7д" },
+                { key: "30d", label: "30д" },
+              ].map((r) => {
+                const active = range === r.key;
+                return (
+                  <Link
+                    key={r.key}
+                    href={buildHref({ range: r.key, page: 1 })}
+                    role="tab"
+                    aria-selected={active}
+                    className={
+                      "inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition " +
+                      (active
+                        ? "bg-white text-[--admin-text] shadow-[var(--admin-shadow-sm)]"
+                        : "text-[--admin-text-2] hover:text-[--admin-text]")
+                    }
+                  >
+                    {r.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
 
           {userFilter ? (

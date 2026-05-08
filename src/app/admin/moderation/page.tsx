@@ -113,6 +113,43 @@ export default async function ModerationListPage({
     redirect("/admin/login");
   }
 
+  async function bulkReject(formData: FormData) {
+    "use server";
+    await requireAdmin();
+    const userIds = formData
+      .getAll("user_id")
+      .map(String)
+      .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
+    if (userIds.length === 0) return;
+    const reason = String(formData.get("reason") ?? "").trim();
+    const kind = String(formData.get("kind") ?? "both");
+    if (reason.length < 10) {
+      return; // client should have prevented this; bail safely
+    }
+    await supabaseAdmin
+      .from("user_documents")
+      .update({
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: reason,
+        rejection_kind: kind,
+      })
+      .in("user_id", userIds);
+    await Promise.all(
+      userIds.map((id) =>
+        transition(
+          id,
+          {
+            verification_status: "rejected",
+            onboarding_step: "verification_rejected",
+          },
+          `bulk reject (${userIds.length} total): ${reason}`,
+          "admin",
+        ),
+      ),
+    );
+    redirect("/admin/moderation");
+  }
+
   async function bulkApprove(formData: FormData) {
     "use server";
     await requireAdmin();
@@ -290,7 +327,11 @@ export default async function ModerationListPage({
             </p>
           </div>
         ) : (
-          <BulkProvider rowIds={items.map((u) => u.id)} approveAction={bulkApprove}>
+          <BulkProvider
+            rowIds={items.map((u) => u.id)}
+            approveAction={bulkApprove}
+            rejectAction={bulkReject}
+          >
             {statusFilter === "pending_review" ? <BulkBar /> : null}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
