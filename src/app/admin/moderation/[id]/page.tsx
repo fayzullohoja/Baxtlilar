@@ -306,18 +306,21 @@ export default async function ModerationDetailPage({
     redirect(`/admin/moderation/${id}`);
   }
 
-  async function ban() {
+  async function ban(formData: FormData) {
     "use server";
     await requireAdmin();
+    const reason =
+      String(formData.get("reason") ?? "").trim() ||
+      "moderator: нарушение правил сервиса";
     await transition(
       id,
       {
         lifecycle_state: "blocked",
         verification_status: "revoked",
         blocked_at: new Date().toISOString(),
-        blocked_reason: "moderator: подделка документов / нарушение правил",
+        blocked_reason: reason,
       },
-      "moderator banned user",
+      `moderator banned user: ${reason}`,
       "admin",
     );
     redirect("/admin/moderation");
@@ -560,6 +563,16 @@ export default async function ModerationDetailPage({
                   документов, фрода, повторных нарушений. Telegram ID будет
                   записан с пометкой о блокировке.
                 </p>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
+                    Причина (видна в /admin/banned + /blocked для юзера)
+                  </span>
+                  <textarea
+                    name="reason"
+                    placeholder="Например: подделка паспорта (повтор после отклонения)"
+                    className="min-h-[60px] resize-none rounded-md border border-[--admin-border] bg-white px-3 py-2 text-xs text-[--admin-text] placeholder:text-[--admin-text-muted]"
+                  />
+                </label>
                 <button
                   type="submit"
                   className="inline-flex h-9 items-center justify-center rounded-md text-xs font-semibold text-white transition hover:brightness-110 active:brightness-95"
