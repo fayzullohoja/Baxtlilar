@@ -1,53 +1,120 @@
 # Bakhtlilar
 
 Telegram Mini App MVP — верифицированные серьёзные знакомства в Узбекистане.
+Не свайп-апп: рекомендация → запрос → взаимное согласие → чат.
 
 ## Stack
 
-- **Next.js 16** (App Router, Turbopack)
-- **Supabase** — Postgres, Storage, ручная модерация
+- **Next.js 16** (App Router, Turbopack, async cookies/headers/params)
+- **React 19** Server Actions
+- **Supabase** — Postgres + Storage, service_role на сервере (RLS обходится)
 - **Telegram Mini App SDK** (`@telegram-apps/sdk-react`)
-- **next-intl** — ru / uz
-- **Tailwind v4** + кастомные компоненты
+- **next-intl 4** — ru / uz
+- **Tailwind v4** (CSS-first @theme)
+- **Vitest** — 100 тестов, юнит + integration
 
-Деплой: Vercel.
+Деплой: Vercel · база: Supabase project `fdehbwckmhqgotikpzyj`.
 
 ## Документация
 
-- `docs/state-machine.md` — единый source-of-truth для роутинга, статусов, доступов. Перед добавлением нового экрана читай этот файл.
+- `docs/state-machine.md` — source-of-truth роутинга и состояний
+- `CHANGELOG.md` — история аудит-раундов с фиксами
+- `supabase/migrations/` — DDL, применять руками через Supabase SQL Editor
 
 ## Локальный запуск
 
-1. `cp .env.example .env.local` (или открой существующий `.env.local`)
-2. Скопируй `service_role` ключ из Supabase Dashboard → API Keys → `secret` и вставь в `SUPABASE_SERVICE_ROLE_KEY`
-3. (опционально) укажи `TELEGRAM_BOT_TOKEN` и выключи `DEV_BYPASS_TG`. В dev-режиме `DEV_BYPASS_TG=1` создаёт фейкового пользователя при первом открытии — приложение работает в обычном браузере.
-4. `pnpm dev` → http://localhost:3000 (редирект на `/ru` или `/uz`)
+```bash
+cp .env.local.example .env.local   # если ещё не настроен
+pnpm install
+pnpm dev                            # → http://localhost:3000
+```
 
-## OTP в dev
+Минимальный `.env.local`:
 
-`SMS_PROVIDER=mock` — реальный код пишется в console.log, а код `123456` всегда принимается.
+```
+NEXT_PUBLIC_SUPABASE_URL=https://fdehbwckmhqgotikpzyj.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...        # из Supabase Dashboard → API → secret
+SESSION_SECRET=                      # 32+ random chars
+TELEGRAM_BOT_TOKEN=...               # из BotFather
+DEV_BYPASS_TG=1                      # пропускает HMAC-валидацию в браузере
+SMS_PROVIDER=mock                    # код 123456 всегда принимается
+ADMIN_SECRET=...                     # пароль админки
+ADMIN_TG_CHAT_ID=                    # (опционально) TG chat ID для уведомлений
+APP_URL=http://localhost:3000        # для ссылок в TG-нотификациях
+```
 
-## Что готово
+Производственные env-переменные стоят в Vercel project settings.
 
-- 25 экранов онбординга (1–25), все шаги двигают `user.onboarding_step`.
-- State machine с явным `nextScreenFor(user)`; при открытии `/` — редирект на нужный экран.
-- Welcome → Language → Security → Phone → OTP — формы и server actions реализованы.
-- Document + Liveness — реальная загрузка в Supabase Storage (private bucket `documents`).
-- Moderation — submitted / pending / rejected / approved.
-- Profile basic → about — заглушки (`StubScreen`), state двигают; preview — реальный.
-- Quiz intro / questions / result — заглушки + финальный переход в `active`.
-- i18n на ru + uz.
-- Audit log: `user_state_transitions` записывается на каждый переход.
+## Тесты
 
-## TODO (после первого коммита)
+```bash
+pnpm test                            # 63 unit-теста, мокнутые зависимости
+pnpm test:full                       # + 37 integration против реального Supabase
+                                     # (RUN_INTEGRATION=1 + .env.local подгружается)
+```
 
-- Реальные формы анкеты (8 экранов профиля) с Zod-валидацией.
-- 12 вопросов квиза + scoring → `quiz_results`.
-- Реальная Telegram initData валидация (с `BOT_TOKEN`).
-- Реальный SMS-провайдер (Eskiz / Playmobile).
-- Админка модерации.
-- RLS-политики на таблицы.
-- Активный продукт: рекомендации, запросы, чаты.
+CI ≈ 35 секунд для full.
+
+## Структура
+
+```
+src/
+├── app/
+│   ├── [locale]/                    # ru / uz пользовательская часть
+│   │   ├── onboarding/              # 22 экрана онбординга
+│   │   ├── main/                    # /main (после онбординга)
+│   │   ├── settings/                # /settings (пауза + удаление аккаунта)
+│   │   ├── blocked/                 # /blocked
+│   │   └── layout.tsx
+│   ├── admin/                       # /admin/* — slate-look админка
+│   │   ├── login/                   # IP-throttled (5 fails / 15min)
+│   │   ├── moderation/              # очередь + детальная карточка
+│   │   ├── users/                   # все юзеры с фильтрами
+│   │   ├── banned/                  # заблокированные + unban
+│   │   ├── audit/                   # лог переходов
+│   │   └── stats/                   # воронка + аналитика
+│   ├── api/health/                  # GET → { status, build, checks }
+│   ├── error.tsx                    # global error boundary
+│   ├── not-found.tsx                # custom 404
+│   └── globals.css                  # Tailwind v4 + admin tokens
+├── lib/
+│   ├── auth/                        # session, bootstrap, throttle
+│   ├── admin/                       # guard, login-throttle, notify, templates
+│   ├── otp/                         # send/verify с rate limiting
+│   ├── profile/                     # Zod schemas + options
+│   ├── quiz/                        # 12 вопросов + scoring
+│   ├── state-machine/               # routing + transition() с optimistic concurrency
+│   ├── supabase/                    # lazy proxy admin client
+│   └── uploads/                     # documents.ts, photos.ts, mime-check, compress-client
+└── components/
+    ├── admin/                       # AdminShell, KeyboardShortcuts
+    ├── brand/logo.tsx               # SVG логотип Bakhtlilar
+    └── ui/{screen,form}.tsx         # Field, RadioList, Input и пр.
+```
+
+## State machine
+
+Каждый юзер имеет 5 декомпозированных полей:
+`lifecycle_state · onboarding_step · verification_status · profile_completion · quiz_completion`.
+
+Переходы только через `transition(userId, patch, reason, triggeredBy)` —
+пишет в `user_state_transitions` (audit log) + проверяет `updated_at` для
+optimistic concurrency.
+
+Каждая onboarding-страница вызывает `requireUserAtStep(locale, expected)` —
+если юзер не на этом шаге, его редиректит на `nextScreenFor(user)`.
+
+## Безопасность
+
+- HMAC-SHA256 валидация Telegram initData (см. `lib/telegram/init-data.ts`)
+- Magic-byte MIME проверка для всех загрузок (защита от .exe → .jpg)
+- CSP header с `frame-ancestors` allowlist для Telegram доменов
+- HSTS, X-Content-Type-Options, Permissions-Policy
+- IP-throttle: admin login (5/15min), bootstrap (10/час), OTP send (1/мин, 5/час)
+- Service role ключ только на сервере; RLS обходится через service_role
+- `requireAdmin()` внутри каждого admin server action (защита от replay)
+- Account deletion стирает все данные + storage objects + сессию
 
 ## Главное правило
 

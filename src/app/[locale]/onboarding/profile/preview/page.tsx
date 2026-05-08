@@ -11,6 +11,7 @@ import {
 import { requireUserAtStep } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
+import type { OnboardingStep } from "@/lib/state-machine/types";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getSignedPhotoUrl } from "@/lib/uploads/photos";
 
@@ -93,14 +94,15 @@ export default async function ProfilePreviewPage({
     redirect(`/${locale}${ONBOARDING_PATHS.quiz_intro}`);
   }
 
-  async function editFromStep(step: string) {
+  async function editFromStep(step: OnboardingStep) {
     "use server";
     await transition(
       user.id,
-      { onboarding_step: step as never },
+      { onboarding_step: step },
       `edit profile from preview → ${step}`,
     );
-    redirect(`/${locale}/onboarding/profile/${step.replace("profile_", "").replace("_", "-")}`);
+    // Use the canonical routing table — never reconstruct URLs from step strings
+    redirect(`/${locale}${ONBOARDING_PATHS[step]}`);
   }
 
   async function editBasic() {
