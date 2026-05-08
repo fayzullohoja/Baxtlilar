@@ -134,6 +134,20 @@ export default async function ProfilePreviewPage({
 
   const age = ageFromDob(profile?.birth_date ?? null);
 
+  // Compute completion across the major sections — encourages user to fill
+  // gaps before they confirm.
+  const sectionFilledCount = [
+    !!profile?.display_name && !!profile?.gender,
+    !!mainPhotoUrl,
+    !!profile?.education_level && !!profile?.work_industry,
+    !!profile?.has_children && !!profile?.wants_children && !!profile?.marriage_timeline,
+    !!profile?.religiosity_level && Array.isArray(profile?.interests) && profile.interests.length > 0,
+    !!profile?.looking_for_gender && Array.isArray(profile?.preferred_partner_qualities) && profile.preferred_partner_qualities.length >= 3,
+    !!profile?.about_me && !!profile?.marriage_values_text,
+  ].filter(Boolean).length;
+  const totalSections = 7;
+  const completionPct = Math.round((sectionFilledCount / totalSections) * 100);
+
   return (
     <Screen>
       <ScreenHeader
@@ -141,6 +155,32 @@ export default async function ProfilePreviewPage({
         subtitle="Посмотрите как выглядит анкета. Если хотите что-то поменять — нажмите «изменить» рядом с разделом."
       />
       <ScreenBody>
+        {/* Completion bar */}
+        <div className="mb-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+              Заполнено разделов
+            </span>
+            <span className="text-xs text-[--color-plum-soft]">
+              {sectionFilledCount} из {totalSections} · {completionPct}%
+            </span>
+          </div>
+          <div
+            className="h-1.5 w-full overflow-hidden rounded-full"
+            style={{ backgroundColor: "var(--color-line)" }}
+          >
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${completionPct}%`,
+                backgroundColor:
+                  completionPct === 100
+                    ? "var(--color-success)"
+                    : "var(--color-brand)",
+              }}
+            />
+          </div>
+        </div>
         <div className="flex flex-col gap-3">
           {/* Header card with main photo */}
           <div className="overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">

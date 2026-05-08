@@ -106,6 +106,26 @@ export default async function UsersListPage({
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
+  // Pre-sign main photo URLs for users that have one. Single batched query.
+  const userIds = items.map((u) => u.id);
+  const { data: photoRows } =
+    userIds.length > 0
+      ? await supabaseAdmin
+          .from("profile_photos")
+          .select("user_id, storage_path")
+          .in("user_id", userIds)
+          .eq("is_main", true)
+      : { data: [] };
+  const photoUrlByUser = new Map<string, string>();
+  await Promise.all(
+    (photoRows ?? []).map(async (r) => {
+      const { data } = await supabaseAdmin.storage
+        .from("profile-photos")
+        .createSignedUrl(r.storage_path, 60 * 60);
+      if (data?.signedUrl) photoUrlByUser.set(r.user_id, data.signedUrl);
+    }),
+  );
+
   async function logout() {
     "use server";
     await clearAdminCookie();
@@ -245,16 +265,26 @@ export default async function UsersListPage({
                             href={`/admin/moderation/${u.id}`}
                             className="flex items-center gap-3"
                           >
-                            <span
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-                              style={{
-                                backgroundColor: "var(--admin-surface-2)",
-                                color: "var(--admin-text-2)",
-                                border: "1px solid var(--admin-border)",
-                              }}
-                            >
-                              {initial}
-                            </span>
+                            {photoUrlByUser.has(u.id) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={photoUrlByUser.get(u.id)!}
+                                alt=""
+                                className="h-8 w-8 shrink-0 rounded-full object-cover"
+                                style={{ border: "1px solid var(--admin-border)" }}
+                              />
+                            ) : (
+                              <span
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                                style={{
+                                  backgroundColor: "var(--admin-surface-2)",
+                                  color: "var(--admin-text-2)",
+                                  border: "1px solid var(--admin-border)",
+                                }}
+                              >
+                                {initial}
+                              </span>
+                            )}
                             <div className="min-w-0">
                               <p className="truncate font-medium text-[--admin-text]">
                                 {u.telegram_first_name ?? "Без имени"}
