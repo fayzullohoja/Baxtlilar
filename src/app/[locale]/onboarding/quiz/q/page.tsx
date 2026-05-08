@@ -35,10 +35,11 @@ export default async function QuizQuestionsPage({
 
   async function answer(formData: FormData) {
     "use server";
+    const validIds = new Set(q.options.map((o) => o.id));
     const isMulti = !!q.multi;
     let value: string | string[];
     if (isMulti) {
-      const all = formData.getAll("opt").map(String);
+      const all = formData.getAll("opt").map(String).filter((v) => validIds.has(v));
       const max = q.multi!.max;
       const min = q.multi!.min;
       if (all.length < min || all.length > max) {
@@ -47,7 +48,7 @@ export default async function QuizQuestionsPage({
       value = all;
     } else {
       const single = formData.get("opt");
-      if (!single) {
+      if (!single || !validIds.has(String(single))) {
         redirect(`/${locale}${ONBOARDING_PATHS.quiz_in_progress}?n=${idx}&error=required`);
       }
       value = String(single);

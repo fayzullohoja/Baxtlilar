@@ -19,6 +19,16 @@ export default async function WelcomePage({
   setRequestLocale(locale);
   const t = await getTranslations("welcome");
 
+  // If user already has a session, send them to their actual step instead
+  // of showing welcome again. Don't redirect when there's an error param —
+  // we want to show the error message on this page.
+  if (!error) {
+    const existing = await getCurrentUser();
+    if (existing) {
+      redirect(`/${locale}${nextScreenFor(existing)}`);
+    }
+  }
+
   const errMsg =
     error === "no_tg"
       ? "Откройте эту страницу через Telegram (бот @baxtlilar_uz_bot), или включите DEV_BYPASS_TG=1."

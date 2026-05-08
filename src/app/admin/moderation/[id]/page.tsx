@@ -6,6 +6,7 @@ import { AdminShell, StatusBadge } from "@/components/admin/shell";
 import { KeyboardShortcuts } from "@/components/admin/keyboard-shortcuts";
 import { RejectForm } from "./reject-form";
 import { ImageViewer } from "./image-viewer";
+import { ResetForm } from "./reset-form";
 
 async function signedDoc(path: string | null | undefined) {
   if (!path) return null;
@@ -200,6 +201,74 @@ export default async function ModerationDetailPage({
     redirect("/admin/moderation");
   }
 
+  async function resetOnboarding(formData: FormData) {
+    "use server";
+    await requireAdmin();
+    const validSteps = new Set([
+      "language",
+      "phone_input",
+      "document_upload",
+      "profile_basic",
+      "profile_photos",
+      "profile_education",
+      "quiz_intro",
+    ]);
+    const step = String(formData.get("step") ?? "");
+    if (!validSteps.has(step)) {
+      redirect(`/admin/moderation/${id}`);
+    }
+    const wipeProfile = formData.get("wipe_profile") === "on";
+    const wipeQuiz = formData.get("wipe_quiz") === "on";
+
+    if (wipeProfile) {
+      await supabaseAdmin.from("user_profiles").delete().eq("user_id", id);
+      // Also clear photos so user re-uploads cleanly
+      const { data: photos } = await supabaseAdmin
+        .from("profile_photos")
+        .select("storage_path")
+        .eq("user_id", id);
+      if (photos && photos.length > 0) {
+        await supabaseAdmin.storage
+          .from("profile-photos")
+          .remove(photos.map((p) => p.storage_path));
+        await supabaseAdmin.from("profile_photos").delete().eq("user_id", id);
+      }
+    }
+    if (wipeQuiz) {
+      await supabaseAdmin.from("quiz_answers").delete().eq("user_id", id);
+      await supabaseAdmin.from("quiz_results").delete().eq("user_id", id);
+    }
+
+    // Step → derived sub-states
+    const profileCompletion =
+      step === "language" || step === "phone_input"
+        ? "not_started"
+        : step.startsWith("profile_")
+          ? "in_progress"
+          : "in_progress";
+    const quizCompletion = step === "quiz_intro" ? "in_progress" : "not_started";
+    const verificationStatus =
+      step === "language" || step === "phone_input"
+        ? "not_started"
+        : step === "document_upload"
+          ? "phone_verified"
+          : "approved";
+
+    await transition(
+      id,
+      {
+        lifecycle_state: "onboarding",
+        onboarding_step: step as never, // narrowed by validSteps check above
+        profile_completion: profileCompletion as never,
+        quiz_completion: quizCompletion as never,
+        verification_status: verificationStatus as never,
+      },
+      `moderator reset to ${step}${wipeProfile ? " (wiped profile)" : ""}${wipeQuiz ? " (wiped quiz)" : ""}`,
+      "admin",
+    );
+    redirect(`/admin/moderation/${id}`);
+  }
+
   async function ban() {
     "use server";
     await requireAdmin();
@@ -385,6 +454,39 @@ export default async function ModerationDetailPage({
                 </svg>
               </summary>
               <RejectForm rejectAction={reject} />
+            </details>
+
+            {/* Reset onboarding — debug/recovery tool */}
+            <details className="group mt-3 overflow-hidden rounded-lg border border-[--admin-border]">
+              <summary className="flex cursor-pointer items-center justify-between px-4 py-2.5 text-xs font-semibold text-[--admin-warn] [&::-webkit-details-marker]:hidden">
+                <span className="inline-flex items-center gap-2">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M14 8a6 6 0 11-1.76-4.24M14 3v3.5h-3.5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Сбросить онбординг
+                </span>
+                <svg
+                  className="h-3.5 w-3.5 transition group-open:rotate-180"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden
+                >
+                  <path
+                    d="M4 6l4 4 4-4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </summary>
+              <ResetForm resetAction={resetOnboarding} />
             </details>
 
             {/* Ban — destructive escalation, separated from reject */}

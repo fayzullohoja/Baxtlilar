@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/screen";
+
+const RESEND_COOLDOWN_SECONDS = 60;
 
 export function OtpForm({
   verifyAction,
@@ -24,6 +26,21 @@ export function OtpForm({
   const [code, setCode] = useState("");
   const [pending, startTransition] = useTransition();
   const [resending, startResend] = useTransition();
+  // Cooldown starts at full duration when page loads, since the SMS was just sent
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
+
+  function onResend() {
+    setCooldown(RESEND_COOLDOWN_SECONDS);
+    startResend(async () => {
+      await resendAction();
+    });
+  }
 
   return (
     <form
@@ -74,14 +91,10 @@ export function OtpForm({
       </PrimaryButton>
       <SecondaryButton
         type="button"
-        disabled={resending}
-        onClick={() =>
-          startResend(async () => {
-            await resendAction();
-          })
-        }
+        disabled={resending || cooldown > 0}
+        onClick={onResend}
       >
-        {labels.resend}
+        {cooldown > 0 ? `${labels.resend} (${cooldown}s)` : labels.resend}
       </SecondaryButton>
     </form>
   );
