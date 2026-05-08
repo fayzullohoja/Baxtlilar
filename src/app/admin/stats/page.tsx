@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -118,6 +119,29 @@ export default async function StatsPage() {
   const last7 = days.slice(-7).reduce((s, d) => s + d.count, 0);
   const prev7 = days.slice(-14, -7).reduce((s, d) => s + d.count, 0);
   const trend = prev7 > 0 ? Math.round(((last7 - prev7) / prev7) * 100) : null;
+
+  // Recent admin actions for activity feed
+  const { data: recentActions } = await supabaseAdmin
+    .from("user_state_transitions")
+    .select("id, user_id, field, old_value, new_value, reason, triggered_by, created_at")
+    .eq("triggered_by", "admin")
+    .order("created_at", { ascending: false })
+    .limit(15);
+
+  const actionUserIds = Array.from(new Set((recentActions ?? []).map((r) => r.user_id)));
+  const { data: actionUsers } =
+    actionUserIds.length > 0
+      ? await supabaseAdmin
+          .from("users")
+          .select("id, telegram_first_name, telegram_username")
+          .in("id", actionUserIds)
+      : { data: [] };
+  const actionUserMap = new Map(
+    (actionUsers ?? []).map((u) => [
+      u.id,
+      u.telegram_first_name ?? u.telegram_username ?? "Без имени",
+    ]),
+  );
 
   async function logout() {
     "use server";
@@ -271,6 +295,97 @@ export default async function StatsPage() {
             <span>сегодня</span>
           </div>
         </div>
+      </section>
+
+      {/* Recent admin actions */}
+      <section className="mt-6 overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
+        <div className="flex items-center justify-between border-b border-[--admin-border] px-5 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[--admin-text]">
+              Последние действия модерации
+            </h2>
+            <p className="mt-0.5 text-xs text-[--admin-text-2]">
+              Что делали админы за последнее время
+            </p>
+          </div>
+          <Link
+            href="/admin/audit?trigger=admin"
+            className="text-[11px] text-[--admin-info] hover:underline"
+          >
+            Полный лог →
+          </Link>
+        </div>
+        {(recentActions ?? []).length === 0 ? (
+          <p className="px-5 py-12 text-center text-sm text-[--admin-text-2]">
+            Пока без действий
+          </p>
+        ) : (
+          <ol className="flex flex-col">
+            {(recentActions ?? []).map((row) => {
+              const userName =
+                actionUserMap.get(row.user_id) ?? row.user_id.slice(0, 8);
+              const isApprove = row.new_value === "approved";
+              const isReject = row.new_value === "rejected";
+              const isBlock = row.new_value === "blocked";
+              const tone = isApprove
+                ? "var(--admin-success)"
+                : isReject || isBlock
+                  ? "var(--admin-danger)"
+                  : "var(--admin-info)";
+              const verb = isApprove
+                ? "одобрил"
+                : isReject
+                  ? "отклонил"
+                  : isBlock
+                    ? "заблокировал"
+                    : `изменил ${row.field}`;
+              return (
+                <li
+                  key={row.id}
+                  className="flex items-start gap-3 border-b border-[--admin-border] px-5 py-3 last:border-b-0"
+                >
+                  <span
+                    className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: tone }}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-[--admin-text]">
+                      <span className="font-medium" style={{ color: tone }}>
+                        {verb}
+                      </span>{" "}
+                      <Link
+                        href={`/admin/moderation/${row.user_id}`}
+                        className="font-medium text-[--admin-info] hover:underline"
+                      >
+                        {userName}
+                      </Link>
+                      {row.field !== "verification_status" &&
+                      row.field !== "lifecycle_state" ? (
+                        <span className="ml-1 text-xs text-[--admin-text-muted]">
+                          ({row.field}: {row.old_value} → {row.new_value})
+                        </span>
+                      ) : null}
+                    </p>
+                    {row.reason ? (
+                      <p className="mt-0.5 text-xs text-[--admin-text-2]">
+                        {row.reason}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="shrink-0 text-[11px] text-[--admin-text-muted]">
+                    {new Date(row.created_at).toLocaleString("ru-RU", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </section>
     </AdminShell>
   );

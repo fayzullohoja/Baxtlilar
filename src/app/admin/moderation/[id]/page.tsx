@@ -5,6 +5,7 @@ import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatusBadge } from "@/components/admin/shell";
 import { KeyboardShortcuts } from "@/components/admin/keyboard-shortcuts";
 import { RejectForm } from "./reject-form";
+import { ImageViewer } from "./image-viewer";
 
 async function signedDoc(path: string | null | undefined) {
   if (!path) return null;
@@ -442,6 +443,7 @@ export default async function ModerationDetailPage({
         nextHref={nextHref}
         prevHref={prevHref}
       />
+      <ImageViewer passportUrl={passportUrl} selfieUrl={selfieUrl} />
     </AdminShell>
   );
 }
@@ -740,10 +742,15 @@ function DocCard({
         ) : null}
       </div>
       {url ? (
-        <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+        <button
+          type="button"
+          data-zoom={kind}
+          className="block w-full cursor-zoom-in border-0 p-0 transition hover:opacity-95"
+          aria-label={`Открыть ${title} в полном размере`}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={url} alt={title} className="block w-full" />
-        </a>
+        </button>
       ) : (
         <div
           className="flex h-56 flex-col items-center justify-center gap-2 text-center text-sm text-[--admin-text-muted]"

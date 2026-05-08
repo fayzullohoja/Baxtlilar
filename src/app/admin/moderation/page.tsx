@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdmin, clearAdminCookie } from "@/lib/admin/guard";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { transition } from "@/lib/state-machine/transitions";
 import { AdminShell, StatTile, StatusBadge } from "@/components/admin/shell";
 import { KeyboardShortcuts } from "@/components/admin/keyboard-shortcuts";
+import { BulkProvider, BulkBar, BulkCheckbox } from "./bulk-actions";
 
 const PAGE_SIZE = 50;
 
@@ -109,6 +111,37 @@ export default async function ModerationListPage({
     "use server";
     await clearAdminCookie();
     redirect("/admin/login");
+  }
+
+  async function bulkApprove(formData: FormData) {
+    "use server";
+    const userIds = formData.getAll("user_id").map(String).filter(Boolean);
+    if (userIds.length === 0) return;
+    // Mark documents reviewed for all
+    await supabaseAdmin
+      .from("user_documents")
+      .update({
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: null,
+        rejection_kind: null,
+      })
+      .in("user_id", userIds);
+    // Transition each (writes audit log)
+    await Promise.all(
+      userIds.map((id) =>
+        transition(
+          id,
+          {
+            verification_status: "approved",
+            onboarding_step: "profile_basic",
+            profile_completion: "in_progress",
+          },
+          `bulk approve (${userIds.length} total)`,
+          "admin",
+        ),
+      ),
+    );
+    redirect("/admin/moderation");
   }
 
   function buildHref(opts: { status?: string; q?: string; page?: number }) {
@@ -253,11 +286,15 @@ export default async function ModerationListPage({
             </p>
           </div>
         ) : (
-          <>
+          <BulkProvider rowIds={items.map((u) => u.id)} approveAction={bulkApprove}>
+            {statusFilter === "pending_review" ? <BulkBar /> : null}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[--admin-border] bg-[--admin-surface-2] text-left text-[11px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
+                    {statusFilter === "pending_review" ? (
+                      <th className="w-10 px-3 py-2.5"></th>
+                    ) : null}
                     <th className="px-5 py-2.5 font-semibold">Пользователь</th>
                     <th className="hidden px-5 py-2.5 font-semibold sm:table-cell">Контакт</th>
                     <th className="hidden px-5 py-2.5 font-semibold md:table-cell">Telegram</th>
@@ -281,6 +318,11 @@ export default async function ModerationListPage({
                         data-queue-row={`/admin/moderation/${u.id}`}
                         className="group border-b border-[--admin-border] last:border-b-0 transition hover:bg-[--admin-row-hover] data-[focused=true]:bg-[--admin-info-bg]"
                       >
+                        {statusFilter === "pending_review" ? (
+                          <td className="px-3 py-3 text-center">
+                            <BulkCheckbox id={u.id} />
+                          </td>
+                        ) : null}
                         <td className="px-5 py-3">
                           <Link
                             href={`/admin/moderation/${u.id}`}
@@ -389,7 +431,7 @@ export default async function ModerationListPage({
                 </div>
               </div>
             ) : null}
-          </>
+          </BulkProvider>
         )}
       </section>
       <KeyboardShortcuts
