@@ -25,6 +25,8 @@ interface TgUpdate {
 }
 
 const APP_URL = process.env.APP_URL ?? "https://baxtlilar.vercel.app";
+const SUPPORT_USERNAME =
+  process.env.SUPPORT_TG_USERNAME ?? "baxtlilar_support";
 
 export async function POST(req: NextRequest) {
   // Verify the request actually came from Telegram (only if secret is set).
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
       "/rules — правила сервиса",
       "/help — это сообщение",
       "",
-      "По любым вопросам пишите @baxtlilar_support",
+      `По любым вопросам пишите @${SUPPORT_USERNAME}`,
     ].join("\n");
   } else if (/^\/rules\b/.test(text)) {
     reply = [

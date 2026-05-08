@@ -30,9 +30,10 @@ export default async function WelcomePage({
     }
   }
 
+  const botUsername = process.env.BOT_USERNAME ?? "baxtlilar_uz_bot";
   const errMsg =
     error === "no_tg"
-      ? "Откройте приложение через Telegram (бот @baxtlilar_uz_bot)."
+      ? `Откройте приложение через Telegram (бот @${botUsername}).`
       : error === "bootstrap"
         ? "Не удалось создать аккаунт. Попробуйте ещё раз."
         : error === "rate_limit"

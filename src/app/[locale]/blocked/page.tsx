@@ -3,7 +3,8 @@ import { Screen, ScreenBody, ScreenFooter } from "@/components/ui/screen";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const SUPPORT_USERNAME = "baxtlilar_support";
+const SUPPORT_USERNAME =
+  process.env.SUPPORT_TG_USERNAME ?? "baxtlilar_support";
 
 export default async function BlockedPage({
   params,

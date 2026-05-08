@@ -131,9 +131,10 @@ export default async function UsersListPage({
   const photoUrlByUser = new Map<string, string>();
   await Promise.all(
     (photoRows ?? []).map(async (r) => {
+      // 4h TTL matches /admin/moderation/[id] — survives moderator lunch breaks
       const { data } = await supabaseAdmin.storage
         .from("profile-photos")
-        .createSignedUrl(r.storage_path, 60 * 60);
+        .createSignedUrl(r.storage_path, 4 * 60 * 60);
       if (data?.signedUrl) photoUrlByUser.set(r.user_id, data.signedUrl);
     }),
   );
