@@ -4,6 +4,7 @@ import { Screen, ScreenBody, ScreenFooter } from "@/components/ui/screen";
 import { Logo } from "@/components/brand/logo";
 import { bootstrapFromTelegram } from "@/lib/auth/bootstrap";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { isBootstrapAllowed, recordBootstrap } from "@/lib/auth/bootstrap-throttle";
 import { nextScreenFor } from "@/lib/state-machine/router";
 import { WelcomeBootstrap } from "./client";
 
@@ -31,13 +32,18 @@ export default async function WelcomePage({
 
   const errMsg =
     error === "no_tg"
-      ? "Откройте эту страницу через Telegram (бот @baxtlilar_uz_bot), или включите DEV_BYPASS_TG=1."
+      ? "Откройте приложение через Telegram (бот @baxtlilar_uz_bot)."
       : error === "bootstrap"
-        ? "Не удалось создать пользователя. Попробуйте ещё раз."
-        : null;
+        ? "Не удалось создать аккаунт. Попробуйте ещё раз."
+        : error === "rate_limit"
+          ? "Слишком много попыток. Подождите час и попробуйте снова."
+          : null;
 
   async function start(initData?: string) {
     "use server";
+    if (!(await isBootstrapAllowed())) {
+      redirect(`/${locale}/onboarding/welcome?error=rate_limit`);
+    }
     try {
       await bootstrapFromTelegram(initData);
     } catch (e) {
@@ -45,6 +51,7 @@ export default async function WelcomePage({
         e instanceof Error && e.message.includes("Invalid Telegram") ? "no_tg" : "bootstrap";
       redirect(`/${locale}/onboarding/welcome?error=${reason}`);
     }
+    await recordBootstrap();
     const user = await getCurrentUser();
     if (!user) redirect(`/${locale}/onboarding/welcome?error=bootstrap`);
     redirect(`/${locale}${nextScreenFor(user)}`);

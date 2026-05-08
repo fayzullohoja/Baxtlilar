@@ -67,13 +67,25 @@ export default async function MainPage({
               {name.slice(0, 1).toUpperCase()}
             </div>
           )}
-          <div className="px-5 py-4">
-            <p className="text-lg font-semibold tracking-tight text-[--color-plum]">
-              {t("greeting", { name })}
-            </p>
-            <p className="mt-1 text-sm text-[--color-ink-2]">
-              {profile?.city ?? "Ташкент"} · {t("limit", { count: 2 })}
-            </p>
+          <div className="flex items-start justify-between gap-3 px-5 py-4">
+            <div>
+              <p className="text-lg font-semibold tracking-tight text-[--color-plum]">
+                {t("greeting", { name })}
+              </p>
+              <p className="mt-1 text-sm text-[--color-ink-2]">
+                {profile?.city ?? "Ташкент"} · {t("limit", { count: 2 })}
+              </p>
+            </div>
+            <a
+              href={`/${locale}/settings`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[--color-plum-mute] transition hover:bg-[--color-blush] hover:text-[--color-brand-deep]"
+              aria-label="Настройки"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M10 3v2.5M10 14.5V17M3 10h2.5M14.5 10H17M5 5l1.8 1.8M13.2 13.2L15 15M5 15l1.8-1.8M13.2 6.8L15 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </a>
           </div>
         </header>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { compressImage } from "@/lib/uploads/compress-client";
 
 export function PhotoSlot({
   previewUrl,
@@ -33,12 +34,18 @@ export function PhotoSlot({
     inputRef.current?.click();
   }
 
-  function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     setError(null);
+    let upload: File = f;
+    try {
+      upload = await compressImage(f);
+    } catch {
+      // fall through with the original file
+    }
     const fd = new FormData();
-    fd.append("file", f);
+    fd.append("file", upload);
     if (position != null) fd.append("position", String(position));
     startTransition(async () => {
       try {

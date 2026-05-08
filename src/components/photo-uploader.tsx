@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/screen";
+import { compressImage } from "@/lib/uploads/compress-client";
 
 export function PhotoUploader({
   uploadAction,
@@ -23,15 +24,33 @@ export function PhotoUploader({
   const [file, setFile] = useState<File | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
 
   function pick() {
     inputRef.current?.click();
   }
 
-  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] ?? null;
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
+  async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.files?.[0] ?? null;
+    if (!raw) {
+      setFile(null);
+      setPreview(null);
+      return;
+    }
+    setError(null);
+    // Run client-side compression for big photos. Always non-blocking on user
+    // intent — failures fall back to the original file.
+    setCompressing(true);
+    try {
+      const compressed = await compressImage(raw);
+      setFile(compressed);
+      setPreview(URL.createObjectURL(compressed));
+    } catch {
+      setFile(raw);
+      setPreview(URL.createObjectURL(raw));
+    } finally {
+      setCompressing(false);
+    }
   }
 
   function submit() {
@@ -86,14 +105,21 @@ export function PhotoUploader({
           {error}
         </p>
       ) : null}
+      {compressing ? (
+        <p className="text-center text-xs text-[--color-ink-muted]">
+          Подготавливаем фото…
+        </p>
+      ) : null}
       {!preview ? (
-        <PrimaryButton onClick={pick}>{labels.pick}</PrimaryButton>
+        <PrimaryButton onClick={pick} disabled={compressing}>
+          {labels.pick}
+        </PrimaryButton>
       ) : (
         <>
-          <PrimaryButton onClick={submit} disabled={pending}>
+          <PrimaryButton onClick={submit} disabled={pending || compressing}>
             {pending ? labels.uploading : labels.use}
           </PrimaryButton>
-          <SecondaryButton onClick={pick} disabled={pending}>
+          <SecondaryButton onClick={pick} disabled={pending || compressing}>
             {labels.retake}
           </SecondaryButton>
         </>
