@@ -153,7 +153,7 @@ export default async function PhotosPage({
               {tc("continue")}
             </PrimaryButton>
             {!main ? (
-              <p className="text-center text-xs text-neutral-500">
+              <p className="text-center text-xs text-[--color-ink-muted]">
                 Сначала загрузите главное фото
               </p>
             ) : null}

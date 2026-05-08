@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { Screen, ScreenHeader, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
+import { Screen, ScreenBody, ScreenFooter, PrimaryButton } from "@/components/ui/screen";
 import { requireUser } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
@@ -23,9 +23,31 @@ export default async function QuizIntroPage({ params }: { params: Promise<{ loca
 
   return (
     <Screen>
-      <ScreenHeader title={t("intro_title")} subtitle={t("intro_body")} />
       <ScreenBody>
-        <p className="text-sm text-neutral-700">{t("intro_help")}</p>
+        <div className="mt-6 flex flex-col items-center text-center">
+          <div
+            className="flex h-20 w-20 items-center justify-center rounded-full text-3xl"
+            style={{
+              backgroundColor: "var(--color-blush)",
+              color: "var(--color-brand-deep)",
+            }}
+            aria-hidden
+          >
+            ✨
+          </div>
+          <h1 className="mt-6 text-[28px] font-semibold leading-tight tracking-tight text-[--color-plum]">
+            {t("intro_title")}
+          </h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-[--color-ink-2]">
+            {t("intro_body")}
+          </p>
+          <div
+            className="mt-7 w-full rounded-3xl px-5 py-4 text-left text-[14px] leading-relaxed text-[--color-plum-soft]"
+            style={{ backgroundColor: "var(--color-blush-soft)" }}
+          >
+            {t("intro_help")}
+          </div>
+        </div>
       </ScreenBody>
       <ScreenFooter>
         <form action={start}>

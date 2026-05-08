@@ -1,5 +1,5 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { Screen, ScreenHeader, ScreenBody, ScreenFooter, SecondaryButton } from "@/components/ui/screen";
+import { Screen, ScreenBody, ScreenFooter, SecondaryButton } from "@/components/ui/screen";
 
 export default async function BlockedPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -8,10 +8,24 @@ export default async function BlockedPage({ params }: { params: Promise<{ locale
 
   return (
     <Screen>
-      <ScreenHeader title={t("title")} subtitle={t("body")} />
       <ScreenBody>
-        <div className="flex h-32 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-3xl">
-          🚫
+        <div className="mt-8 flex flex-col items-center text-center">
+          <div
+            className="flex h-20 w-20 items-center justify-center rounded-full text-3xl"
+            style={{
+              backgroundColor: "var(--color-danger-bg)",
+              color: "var(--color-danger)",
+            }}
+            aria-hidden
+          >
+            ✕
+          </div>
+          <h1 className="mt-6 text-[28px] font-semibold leading-tight tracking-tight text-[--color-plum]">
+            {t("title")}
+          </h1>
+          <p className="mt-3 text-[15px] leading-relaxed text-[--color-ink-2]">
+            {t("body")}
+          </p>
         </div>
       </ScreenBody>
       <ScreenFooter>

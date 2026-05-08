@@ -40,15 +40,26 @@ export default async function SecurityIntroPage({
           {steps.map((s, i) => (
             <li
               key={i}
-              className="flex items-center gap-3 rounded-xl border border-neutral-200 bg-white p-4"
+              className="flex items-center gap-4 rounded-3xl bg-white p-5 shadow-[0_4px_16px_rgba(74,44,53,0.04)]"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-neutral-900 text-sm font-semibold text-white">
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-base font-semibold"
+                style={{
+                  backgroundColor: "var(--color-blush)",
+                  color: "var(--color-brand-deep)",
+                }}
+              >
                 {i + 1}
               </span>
-              <span className="text-sm">{s}</span>
+              <span className="text-[15px] leading-relaxed text-[--color-plum]">
+                {s}
+              </span>
             </li>
           ))}
         </ul>
+        <p className="mt-6 rounded-2xl border border-[--color-brand-border] bg-[--color-blush] px-4 py-3 text-center text-xs leading-relaxed text-[--color-brand-deep]">
+          Ваши документы видит только наша команда модерации.
+        </p>
       </ScreenBody>
       <ScreenFooter>
         <form action={next}>

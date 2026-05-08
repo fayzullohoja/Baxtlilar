@@ -76,7 +76,7 @@ export default async function LookingForPage({
                 required
                 className="w-full"
               />
-              <span className="text-sm text-neutral-500">—</span>
+              <span className="text-sm text-[--color-ink-muted]">—</span>
               <TextInput
                 name="preferred_age_max"
                 type="number"

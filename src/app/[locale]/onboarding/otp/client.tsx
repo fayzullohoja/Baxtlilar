@@ -35,7 +35,7 @@ export function OtpForm({
       className="flex flex-col gap-3"
     >
       <label className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-neutral-700">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
           {labels.input}
         </span>
         <input
@@ -45,18 +45,24 @@ export function OtpForm({
           maxLength={6}
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          className="h-14 rounded-xl border border-neutral-300 bg-white px-4 text-center text-2xl tracking-[0.5em] focus:border-neutral-900 focus:outline-none"
+          className="h-16 rounded-2xl border border-[--color-line] bg-[--color-blush-soft] px-4 text-center text-3xl font-semibold tracking-[0.5em] text-[--color-plum]"
           required
         />
       </label>
       {initialError === "invalid" ? (
-        <p className="text-sm text-red-600">{labels.invalid}</p>
+        <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-center text-sm text-[--color-danger]">
+          {labels.invalid}
+        </p>
       ) : null}
       {initialError === "too_many" ? (
-        <p className="text-sm text-red-600">{labels.tooMany}</p>
+        <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-center text-sm text-[--color-danger]">
+          {labels.tooMany}
+        </p>
       ) : null}
       {labels.devHint ? (
-        <p className="text-xs text-neutral-500">{labels.devHint}</p>
+        <p className="rounded-2xl border border-[--color-brand-border] bg-[--color-blush] px-4 py-2 text-center text-xs text-[--color-brand-deep]">
+          {labels.devHint}
+        </p>
       ) : null}
       <PrimaryButton type="submit" disabled={pending || code.length !== 6}>
         {pending ? "…" : labels.submit}

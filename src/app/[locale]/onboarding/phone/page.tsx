@@ -1,6 +1,13 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { Screen, ScreenHeader, ScreenBody, PrimaryButton } from "@/components/ui/screen";
+import {
+  Screen,
+  ScreenHeader,
+  ScreenBody,
+  PrimaryButton,
+  Field,
+  Input,
+} from "@/components/ui/screen";
 import { requireUser } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
@@ -38,21 +45,17 @@ export default async function PhonePage({
     <Screen>
       <ScreenHeader title={t("title")} subtitle={t("body")} />
       <ScreenBody>
-        <form action={submit} className="flex flex-col gap-3">
-          <label className="flex flex-col gap-2">
-            <span className="text-sm font-medium text-neutral-700">
-              {t("label")}
-            </span>
-            <input
+        <form action={submit} className="flex flex-col gap-4">
+          <Field label={t("label")} hint="Мы отправим SMS с кодом подтверждения">
+            <Input
               name="phone"
               type="tel"
               autoComplete="tel"
               placeholder="+998 XX XXX XX XX"
               defaultValue={user.phone_number ?? "+998"}
-              className="h-12 rounded-xl border border-neutral-300 bg-white px-4 text-base focus:border-neutral-900 focus:outline-none"
               required
             />
-          </label>
+          </Field>
           <PrimaryButton type="submit">{t("submit")}</PrimaryButton>
         </form>
       </ScreenBody>

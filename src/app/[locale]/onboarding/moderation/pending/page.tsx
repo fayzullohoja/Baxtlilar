@@ -34,18 +34,44 @@ export default async function ModerationPendingPage({
     <Screen>
       <ScreenHeader title={t("pending_title")} />
       <ScreenBody>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {steps.map((s, i) => (
             <li
               key={i}
-              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 text-sm"
+              className="flex items-center justify-between gap-3 rounded-3xl bg-white p-5 shadow-[0_4px_16px_rgba(74,44,53,0.04)]"
             >
-              <span>{s.label}</span>
+              <span className="flex items-center gap-3 text-[15px] text-[--color-plum]">
+                <span
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
+                  style={
+                    s.done
+                      ? {
+                          backgroundColor: "var(--color-success-bg)",
+                          color: "var(--color-success)",
+                        }
+                      : {
+                          backgroundColor: "var(--color-blush)",
+                          color: "var(--color-brand-deep)",
+                        }
+                  }
+                  aria-hidden
+                >
+                  {s.done ? "✓" : i + 1}
+                </span>
+                {s.label}
+              </span>
               <span
-                className={
+                className="rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wider"
+                style={
                   s.done
-                    ? "rounded-full bg-green-100 px-2 py-1 text-xs text-green-700"
-                    : "rounded-full bg-neutral-100 px-2 py-1 text-xs text-neutral-600"
+                    ? {
+                        backgroundColor: "var(--color-success-bg)",
+                        color: "var(--color-success)",
+                      }
+                    : {
+                        backgroundColor: "var(--color-warn-bg)",
+                        color: "var(--color-warn)",
+                      }
                 }
               >
                 {s.done ? t("pending_done") : t("pending_review_status")}

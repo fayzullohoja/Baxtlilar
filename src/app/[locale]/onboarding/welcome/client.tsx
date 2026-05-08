@@ -47,7 +47,9 @@ export function WelcomeBootstrap({
         {pending ? "…" : startLabel}
       </PrimaryButton>
       {error ? (
-        <p className="mt-2 text-center text-xs text-red-600">{error}</p>
+        <p className="mt-2 rounded-2xl bg-[--color-danger-bg] px-4 py-2 text-center text-xs text-[--color-danger]">
+          {error}
+        </p>
       ) : null}
     </>
   );

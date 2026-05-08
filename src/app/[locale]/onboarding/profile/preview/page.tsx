@@ -47,13 +47,19 @@ export default async function ProfilePreviewPage({ params }: { params: Promise<{
     <Screen>
       <ScreenHeader title={t("preview_title")} />
       <ScreenBody>
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 text-sm">
-          <p className="font-medium">
+        <div className="rounded-3xl bg-white p-6 shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
+          <p className="text-lg font-semibold text-[--color-plum]">
             {profile?.display_name ?? "—"}
-            {profile?.birth_date ? `, ${profile.birth_date}` : ""}
+            {profile?.birth_date ? (
+              <span className="ml-2 font-normal text-[--color-plum-mute]">
+                · {profile.birth_date}
+              </span>
+            ) : null}
           </p>
-          <p className="text-neutral-600">{profile?.city ?? "—"}</p>
-          <p className="mt-2 whitespace-pre-wrap text-neutral-700">
+          <p className="mt-1 text-sm text-[--color-ink-2]">
+            {profile?.city ?? "—"}
+          </p>
+          <p className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed text-[--color-plum-soft]">
             {profile?.about_me ?? "(анкета пока пустая — это заглушка)"}
           </p>
         </div>

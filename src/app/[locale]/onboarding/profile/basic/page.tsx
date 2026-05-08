@@ -76,13 +76,15 @@ export default async function ProfileBasicPage({
           ? "Заполните все обязательные поля"
           : null;
 
+  const inputCls =
+    "h-12 rounded-2xl border border-[--color-line] bg-[--color-blush-soft] px-4 text-base text-[--color-plum] placeholder:text-[--color-ink-muted]";
   return (
     <Screen>
       <ScreenHeader title={t("basic_title")} />
       <ScreenBody>
-        <form action={save} className="flex flex-col gap-3">
+        <form action={save} className="flex flex-col gap-4">
           {errMsg ? (
-            <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-sm text-[--color-danger]">
               {errMsg}
             </p>
           ) : null}
@@ -93,7 +95,7 @@ export default async function ProfileBasicPage({
               required
               minLength={2}
               maxLength={50}
-              className="h-12 rounded-xl border border-neutral-300 bg-white px-4"
+              className={inputCls}
             />
           </Field>
           <Field label={t("birth_date")}>
@@ -102,7 +104,7 @@ export default async function ProfileBasicPage({
               type="date"
               defaultValue={existing?.birth_date ?? ""}
               required
-              className="h-12 rounded-xl border border-neutral-300 bg-white px-4"
+              className={inputCls}
             />
           </Field>
           <Field label={t("gender")}>
@@ -116,14 +118,14 @@ export default async function ProfileBasicPage({
               name="city"
               defaultValue={existing?.city ?? "Ташкент"}
               required
-              className="h-12 rounded-xl border border-neutral-300 bg-white px-4"
+              className={inputCls}
             />
           </Field>
           <Field label={t("district")}>
             <input
               name="district"
               defaultValue={existing?.district ?? ""}
-              className="h-12 rounded-xl border border-neutral-300 bg-white px-4"
+              className={inputCls}
             />
           </Field>
           <Field label={t("marital_status")}>
@@ -131,7 +133,7 @@ export default async function ProfileBasicPage({
               name="marital_status"
               defaultValue={existing?.marital_status ?? ""}
               required
-              className="h-12 rounded-xl border border-neutral-300 bg-white px-4"
+              className={`${inputCls} appearance-none`}
             >
               <option value="" disabled>—</option>
               <option value="never_married">{t("ms_never")}</option>
@@ -155,7 +157,9 @@ export default async function ProfileBasicPage({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-neutral-700">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+        {label}
+      </span>
       {children}
     </label>
   );
@@ -173,7 +177,7 @@ function RadioPill({
   defaultChecked?: boolean;
 }) {
   return (
-    <label className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 py-3 text-sm has-[:checked]:border-neutral-900 has-[:checked]:bg-neutral-900 has-[:checked]:text-white">
+    <label className="flex flex-1 cursor-pointer items-center justify-center rounded-2xl border border-[--color-line] bg-white px-4 py-3.5 text-[15px] text-[--color-plum] transition has-[:checked]:border-[--color-brand] has-[:checked]:bg-[--color-blush] has-[:checked]:text-[--color-brand-deep] has-[:checked]:font-semibold">
       <input
         type="radio"
         name={name}

@@ -59,16 +59,33 @@ export function PhotoUploader({
         onChange={onFileChange}
       />
       {preview ? (
-        <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white">
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={preview} alt="preview" className="block w-full" />
         </div>
       ) : (
-        <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-neutral-300 bg-white text-sm text-neutral-500">
+        <div
+          className="flex h-56 flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-[--color-brand-border] text-center text-sm text-[--color-plum-mute]"
+          style={{ backgroundColor: "var(--color-blush-soft)" }}
+        >
+          <span
+            className="flex h-12 w-12 items-center justify-center rounded-2xl text-xl"
+            style={{
+              backgroundColor: "var(--color-blush)",
+              color: "var(--color-brand-deep)",
+            }}
+            aria-hidden
+          >
+            ⊕
+          </span>
           {labels.pick}
         </div>
       )}
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-center text-sm text-[--color-danger]">
+          {error}
+        </p>
+      ) : null}
       {!preview ? (
         <PrimaryButton onClick={pick}>{labels.pick}</PrimaryButton>
       ) : (

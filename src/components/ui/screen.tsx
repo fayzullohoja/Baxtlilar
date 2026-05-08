@@ -134,3 +134,87 @@ export function Badge({
     </span>
   );
 }
+
+const fieldBase =
+  "h-12 rounded-2xl border border-[--color-line] bg-[--color-blush-soft] px-4 text-base text-[--color-plum] placeholder:text-[--color-ink-muted] transition";
+
+export function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="flex flex-col gap-2">
+      <span className="text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+        {label}
+      </span>
+      {children}
+      {hint ? (
+        <span className="text-xs text-[--color-ink-muted]">{hint}</span>
+      ) : null}
+    </label>
+  );
+}
+
+export function Input({
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...props} className={`${fieldBase} ${className}`} />;
+}
+
+export function Textarea({
+  className = "",
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={`${fieldBase} h-auto min-h-[120px] py-3 leading-relaxed resize-none ${className}`}
+    />
+  );
+}
+
+export function Select({
+  className = "",
+  children,
+  ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
+    <select {...props} className={`${fieldBase} appearance-none ${className}`}>
+      {children}
+    </select>
+  );
+}
+
+export function ErrorBanner({ children }: { children: ReactNode }) {
+  return (
+    <p className="rounded-2xl bg-[--color-danger-bg] px-4 py-3 text-center text-sm text-[--color-danger]">
+      {children}
+    </p>
+  );
+}
+
+export function InfoBanner({
+  tone = "warn",
+  children,
+}: {
+  tone?: "warn" | "brand";
+  children: ReactNode;
+}) {
+  const cls =
+    tone === "warn"
+      ? "border-[--color-warn] bg-[--color-warn-bg] text-[--color-warn]"
+      : "border-[--color-brand-border] bg-[--color-blush] text-[--color-brand-deep]";
+  return (
+    <p
+      className={`rounded-2xl border px-4 py-3 text-center text-xs leading-relaxed ${cls}`}
+    >
+      {children}
+    </p>
+  );
+}

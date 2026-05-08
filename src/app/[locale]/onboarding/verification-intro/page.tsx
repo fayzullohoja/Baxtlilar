@@ -29,14 +29,27 @@ export default async function VerificationIntroPage({
     <Screen>
       <ScreenHeader title={t("title")} subtitle={t("body")} />
       <ScreenBody>
-        <p className="mb-3 text-sm font-medium text-neutral-700">{t("what")}</p>
-        <ul className="flex flex-col gap-2">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
+          {t("what")}
+        </p>
+        <ul className="flex flex-col gap-3">
           {[t("passport"), t("selfie"), t("review")].map((s, i) => (
             <li
               key={i}
-              className="rounded-xl border border-neutral-200 bg-white p-4 text-sm"
+              className="flex items-center gap-4 rounded-3xl bg-white p-5 shadow-[0_4px_16px_rgba(74,44,53,0.04)]"
             >
-              {i + 1}. {s}
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl text-sm font-semibold"
+                style={{
+                  backgroundColor: "var(--color-blush)",
+                  color: "var(--color-brand-deep)",
+                }}
+              >
+                {i + 1}
+              </span>
+              <span className="text-[15px] leading-relaxed text-[--color-plum]">
+                {s}
+              </span>
             </li>
           ))}
         </ul>

@@ -39,12 +39,20 @@ export default async function DocumentPage({
     <Screen>
       <ScreenHeader title={t("title")} subtitle={t("body")} />
       <ScreenBody>
-        <ul className="mb-6 space-y-2 text-sm text-neutral-700">
-          <li>• {t("tip_1")}</li>
-          <li>• {t("tip_2")}</li>
-          <li>• {t("tip_3")}</li>
-          <li>• {t("tip_4")}</li>
-        </ul>
+        <div
+          className="mb-5 rounded-2xl px-4 py-3"
+          style={{ backgroundColor: "var(--color-blush-soft)" }}
+        >
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[--color-brand-deep]">
+            Советы
+          </p>
+          <ul className="flex flex-col gap-1.5 text-sm leading-relaxed text-[--color-plum-soft]">
+            <li>· {t("tip_1")}</li>
+            <li>· {t("tip_2")}</li>
+            <li>· {t("tip_3")}</li>
+            <li>· {t("tip_4")}</li>
+          </ul>
+        </div>
         <PhotoUploader
           uploadAction={upload}
           labels={{

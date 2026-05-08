@@ -1,6 +1,6 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
-import { Screen, ScreenHeader, ScreenBody } from "@/components/ui/screen";
+import { Screen, ScreenBody } from "@/components/ui/screen";
 import { requireUser } from "@/lib/auth/current-user";
 import { transition } from "@/lib/state-machine/transitions";
 import { ONBOARDING_PATHS } from "@/lib/state-machine/router";
@@ -101,12 +101,32 @@ export default async function QuizQuestionsPage({
     label: locale === "uz" ? o.label_uz : o.label_ru,
   }));
 
+  const progressPct = Math.round(((idx + 1) / QUIZ_QUESTIONS.length) * 100);
+
   return (
     <Screen>
-      <ScreenHeader
-        title={prompt}
-        subtitle={t("progress", { current: idx + 1, total: QUIZ_QUESTIONS.length })}
-      />
+      <header className="mb-6">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[--color-brand-deep]">
+            {t("progress", { current: idx + 1, total: QUIZ_QUESTIONS.length })}
+          </span>
+          <span className="text-xs text-[--color-ink-muted]">
+            {progressPct}%
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[--color-line]">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${progressPct}%`,
+              backgroundColor: "var(--color-brand)",
+            }}
+          />
+        </div>
+        <h1 className="mt-6 text-[22px] font-semibold leading-snug tracking-tight text-[--color-plum]">
+          {prompt}
+        </h1>
+      </header>
       <ScreenBody>
         <QuizQuestionForm
           questionId={q.id}
