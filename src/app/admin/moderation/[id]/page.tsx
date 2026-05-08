@@ -96,6 +96,28 @@ export default async function ModerationDetailPage({
     .eq("user_id", id)
     .maybeSingle();
 
+  // Profile photos (after moderation approval, user uploads these)
+  const { data: profilePhotos } = await supabaseAdmin
+    .from("profile_photos")
+    .select("id, storage_path, is_main")
+    .eq("user_id", id)
+    .order("is_main", { ascending: false });
+  const profilePhotoUrls: { id: string; url: string; isMain: boolean }[] = [];
+  if (profilePhotos) {
+    for (const p of profilePhotos) {
+      const { data } = await supabaseAdmin.storage
+        .from("profile-photos")
+        .createSignedUrl(p.storage_path, 4 * 60 * 60);
+      if (data?.signedUrl) {
+        profilePhotoUrls.push({
+          id: p.id,
+          url: data.signedUrl,
+          isMain: p.is_main,
+        });
+      }
+    }
+  }
+
   // Surrounding pending users for keyboard J/K navigation
   let nextHref: string | null = null;
   let prevHref: string | null = null;
@@ -554,7 +576,11 @@ export default async function ModerationDetailPage({
 
       {/* Bottom row: profile + audit log */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <ProfileCard profile={profile} quiz={quiz} />
+        <ProfileCard
+          profile={profile}
+          quiz={quiz}
+          profilePhotos={profilePhotoUrls}
+        />
         <AuditCard transitions={recentTransitions ?? []} userId={id} />
       </div>
 
@@ -572,13 +598,51 @@ export default async function ModerationDetailPage({
 function ProfileCard({
   profile,
   quiz,
+  profilePhotos,
 }: {
   profile: Record<string, unknown> | null;
   quiz: Record<string, unknown> | null;
+  profilePhotos: { id: string; url: string; isMain: boolean }[];
 }) {
-  const hasProfile = profile && Object.values(profile).some((v) => v != null && v !== "");
+  const hasProfile =
+    profile && Object.values(profile).some((v) => v != null && v !== "");
+  const hasPhotos = profilePhotos.length > 0;
   return (
     <section className="overflow-hidden rounded-xl border border-[--admin-border] bg-white shadow-[var(--admin-shadow-sm)]">
+      {hasPhotos ? (
+        <div className="border-b border-[--admin-border] bg-[--admin-surface-2] p-3">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[--admin-text-muted]">
+            Профильные фото
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {profilePhotos.map((p) => (
+              <a
+                key={p.id}
+                href={p.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative block overflow-hidden rounded-md"
+                title={p.isMain ? "main" : "extra"}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={p.url}
+                  alt=""
+                  className="aspect-square w-full object-cover"
+                />
+                {p.isMain ? (
+                  <span
+                    className="absolute left-0.5 top-0.5 rounded bg-black/60 px-1 text-[9px] font-semibold text-white"
+                    aria-hidden
+                  >
+                    main
+                  </span>
+                ) : null}
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
       <div className="flex items-center justify-between border-b border-[--admin-border] bg-[--admin-surface-2] px-5 py-3">
         <h2 className="text-sm font-semibold text-[--admin-text]">Анкета и квиз</h2>
         {!hasProfile ? (

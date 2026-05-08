@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getSessionUserId } from "./session";
 import type { UserState, OnboardingStep } from "@/lib/state-machine/types";
 import { nextScreenFor } from "@/lib/state-machine/router";
+import { isMaintenanceMode } from "@/lib/maintenance";
 
 export async function getCurrentUser(): Promise<UserState | null> {
   const userId = await getSessionUserId();
@@ -20,6 +21,8 @@ export async function getCurrentUser(): Promise<UserState | null> {
 }
 
 export async function requireUser(locale: string): Promise<UserState> {
+  if (isMaintenanceMode()) redirect(`/${locale}/maintenance`);
+
   const u = await getCurrentUser();
   if (!u) redirect(`/${locale}/onboarding/welcome`);
 
