@@ -256,7 +256,7 @@ d("Onboarding happy-path against real Supabase", () => {
   });
 
   it("quiz_answers store with composite PK (no duplicates)", async () => {
-    const answers = [
+    const answers: Array<Record<string, unknown>> = [
       { user_id: userId, question_id: "q1_intention", answer: "marriage" },
       { user_id: userId, question_id: "q4_values", answer: ["family", "respect", "stability"] },
     ];
