@@ -339,10 +339,35 @@ function Section({
   rows: Array<[string, string | null | undefined]>;
 }) {
   const filled = rows.filter(([, v]) => v != null && v !== "");
+  const isComplete = filled.length === rows.length;
   return (
     <section className="overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
       <div className="flex items-center justify-between border-b border-[--color-line-soft] px-5 py-3">
-        <p className="text-sm font-semibold text-[--color-plum]">{title}</p>
+        <div className="flex items-center gap-2">
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+            style={
+              filled.length === 0
+                ? {
+                    backgroundColor: "var(--color-line-soft)",
+                    color: "var(--color-ink-muted)",
+                  }
+                : isComplete
+                  ? {
+                      backgroundColor: "var(--color-success-bg)",
+                      color: "var(--color-success)",
+                    }
+                  : {
+                      backgroundColor: "var(--color-warn-bg)",
+                      color: "var(--color-warn)",
+                    }
+            }
+            aria-hidden
+          >
+            {isComplete ? "✓" : filled.length === 0 ? "○" : "!"}
+          </span>
+          <p className="text-sm font-semibold text-[--color-plum]">{title}</p>
+        </div>
         <form action={editAction}>
           <button
             type="submit"

@@ -49,6 +49,7 @@ export default async function AuditLogPage({
     trigger?: string;
     page?: string;
     range?: string;
+    field?: string;
   }>;
 }) {
   if (!(await isAdmin())) redirect("/admin/login");
@@ -57,6 +58,7 @@ export default async function AuditLogPage({
   const userFilter = sp.user ?? "";
   const triggerFilter = sp.trigger ?? "all";
   const range = sp.range ?? "all"; // all | 24h | 7d | 30d
+  const fieldFilter = sp.field ?? "all";
   const page = Math.max(1, Number(sp.page ?? 1) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
@@ -68,6 +70,7 @@ export default async function AuditLogPage({
 
   if (userFilter) q = q.eq("user_id", userFilter);
   if (triggerFilter !== "all") q = q.eq("triggered_by", triggerFilter);
+  if (fieldFilter !== "all") q = q.eq("field", fieldFilter);
 
   if (range !== "all") {
     const hours = range === "24h" ? 24 : range === "7d" ? 24 * 7 : 24 * 30;
@@ -110,6 +113,7 @@ export default async function AuditLogPage({
     trigger?: string;
     user?: string;
     range?: string;
+    field?: string;
     page?: number;
   }) {
     const p = new URLSearchParams();
@@ -119,6 +123,8 @@ export default async function AuditLogPage({
     if (newUser) p.set("user", newUser);
     const newRange = opts.range ?? range;
     if (newRange !== "all") p.set("range", newRange);
+    const newField = opts.field ?? fieldFilter;
+    if (newField !== "all") p.set("field", newField);
     if (opts.page && opts.page > 1) p.set("page", String(opts.page));
     const qs = p.toString();
     return `/admin/audit${qs ? `?${qs}` : ""}`;
@@ -194,6 +200,40 @@ export default async function AuditLogPage({
                     }
                   >
                     {r.label}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div
+              role="tablist"
+              aria-label="field"
+              className="inline-flex items-center gap-1 rounded-lg p-1"
+              style={{ backgroundColor: "var(--admin-surface-2)" }}
+            >
+              {[
+                { key: "all", label: "Все поля" },
+                { key: "lifecycle_state", label: "lifecycle" },
+                { key: "verification_status", label: "verification" },
+                { key: "onboarding_step", label: "onboarding" },
+                { key: "profile_completion", label: "profile" },
+                { key: "quiz_completion", label: "quiz" },
+              ].map((f) => {
+                const active = fieldFilter === f.key;
+                return (
+                  <Link
+                    key={f.key}
+                    href={buildHref({ field: f.key, page: 1 })}
+                    role="tab"
+                    aria-selected={active}
+                    className={
+                      "inline-flex h-7 items-center rounded-md px-2.5 text-xs font-mono font-medium transition " +
+                      (active
+                        ? "bg-white text-[--admin-text] shadow-[var(--admin-shadow-sm)]"
+                        : "text-[--admin-text-2] hover:text-[--admin-text]")
+                    }
+                  >
+                    {f.label}
                   </Link>
                 );
               })}
