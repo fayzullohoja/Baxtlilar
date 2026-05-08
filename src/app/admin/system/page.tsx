@@ -132,6 +132,16 @@ export default async function SystemPage() {
               открыть →
             </a>
           </div>
+          <div className="flex items-center justify-between gap-3 border-t border-[--admin-border] px-5 py-3 text-xs">
+            <span className="text-[--admin-text-muted]">Экспорт юзеров (CSV)</span>
+            <a
+              href="/api/admin/export"
+              className="text-[--admin-info] hover:underline"
+              download
+            >
+              скачать →
+            </a>
+          </div>
         </Section>
       </div>
     </AdminShell>
