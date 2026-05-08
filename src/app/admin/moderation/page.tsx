@@ -371,10 +371,25 @@ export default async function ModerationListPage({
                           {u.language ?? "—"}
                         </td>
                         <td className="px-5 py-3">
-                          <StatusBadge label={badge.label} tone={badge.tone} />
+                          {(() => {
+                            const ageHours =
+                              (Date.now() - new Date(u.created_at).getTime()) /
+                              (60 * 60 * 1000);
+                            const isStale =
+                              u.verification_status === "pending_review" &&
+                              ageHours > 24;
+                            return (
+                              <StatusBadge
+                                label={isStale ? "⚠ Просрочено" : badge.label}
+                                tone={isStale ? "danger" : badge.tone}
+                              />
+                            );
+                          })()}
                         </td>
                         <td className="px-5 py-3 text-right">
-                          <p className="text-sm text-[--admin-text]">{timeAgo(u.created_at)}</p>
+                          <p className="text-sm text-[--admin-text]">
+                            {timeAgo(u.created_at)}
+                          </p>
                           <p className="hidden text-[11px] text-[--admin-text-muted] sm:block">
                             {formatDateTime(u.created_at)}
                           </p>
