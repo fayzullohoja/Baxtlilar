@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
 import { setAdminCookie, isAdmin } from "@/lib/admin/guard";
+import {
+  isThrottled,
+  recordLoginFailure,
+  recordLoginSuccess,
+} from "@/lib/admin/login-throttle";
 import { Logo } from "@/components/brand/logo";
 
 export default async function AdminLoginPage({
@@ -12,9 +17,16 @@ export default async function AdminLoginPage({
 
   async function login(formData: FormData) {
     "use server";
+    if (await isThrottled()) {
+      redirect("/admin/login?error=throttled");
+    }
     const secret = String(formData.get("secret") ?? "");
     const ok = await setAdminCookie(secret);
-    if (!ok) redirect("/admin/login?error=1");
+    if (!ok) {
+      await recordLoginFailure();
+      redirect("/admin/login?error=1");
+    }
+    await recordLoginSuccess();
     redirect("/admin/moderation");
   }
 
@@ -63,7 +75,27 @@ export default async function AdminLoginPage({
               />
             </label>
 
-            {error ? (
+            {error === "throttled" ? (
+              <div
+                className="flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm"
+                style={{
+                  backgroundColor: "var(--admin-warn-bg)",
+                  borderColor: "var(--admin-warn-border)",
+                  color: "var(--admin-warn)",
+                }}
+              >
+                <svg
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  aria-hidden
+                >
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M8 5v6M5.5 8.5l2.5 -2 2.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                <span>Слишком много попыток. Подождите 15 минут и попробуйте снова.</span>
+              </div>
+            ) : error ? (
               <div
                 className="flex items-start gap-2 rounded-lg border px-3 py-2.5 text-sm"
                 style={{

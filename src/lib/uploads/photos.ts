@@ -1,8 +1,21 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { detectImageType } from "./mime-check";
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/heic", "image/webp"];
 const MAX_BYTES = 5 * 1024 * 1024;
+const TYPE_TO_MIME: Record<string, string> = {
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+};
+const TYPE_TO_EXT: Record<string, string> = {
+  jpeg: "jpg",
+  png: "png",
+  webp: "webp",
+  heic: "heic",
+};
 
 export async function uploadProfilePhoto(
   userId: string,
@@ -12,13 +25,14 @@ export async function uploadProfilePhoto(
 ): Promise<string> {
   if (!ALLOWED_MIME.includes(file.type)) throw new Error("Unsupported file type");
   if (file.size > MAX_BYTES) throw new Error("File too large");
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const path = `${userId}/${isMain ? "main" : `extra-${position}`}-${Date.now()}.${ext}`;
+  const detected = await detectImageType(file);
+  if (!detected) throw new Error("Unsupported file type");
+  const path = `${userId}/${isMain ? "main" : `extra-${position}`}-${Date.now()}.${TYPE_TO_EXT[detected]}`;
   const buf = await file.arrayBuffer();
   const { error } = await supabaseAdmin.storage
     .from("profile-photos")
     .upload(path, new Uint8Array(buf), {
-      contentType: file.type,
+      contentType: TYPE_TO_MIME[detected],
       upsert: false,
     });
   if (error) throw error;

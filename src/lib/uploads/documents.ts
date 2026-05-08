@@ -1,8 +1,21 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { detectImageType } from "./mime-check";
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/heic", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
+const TYPE_TO_MIME: Record<string, string> = {
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+};
+const TYPE_TO_EXT: Record<string, string> = {
+  jpeg: "jpg",
+  png: "png",
+  webp: "webp",
+  heic: "heic",
+};
 
 async function uploadToBucket(
   bucket: string,
@@ -10,15 +23,22 @@ async function uploadToBucket(
   file: File,
   kind: string,
 ) {
+  // First-pass: client-set MIME (cheap reject for obvious wrong types)
   if (!ALLOWED_MIME.includes(file.type)) throw new Error("Unsupported file type");
   if (file.size > MAX_BYTES) throw new Error("File too large");
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const path = `${userId}/${kind}-${Date.now()}.${ext}`;
+
+  // Second-pass: magic-byte detection — defense against MIME spoofing.
+  // Trust the bytes, not the client header. We rewrite the stored
+  // contentType to match what we actually see.
+  const detected = await detectImageType(file);
+  if (!detected) throw new Error("Unsupported file type");
+
+  const path = `${userId}/${kind}-${Date.now()}.${TYPE_TO_EXT[detected]}`;
   const buf = await file.arrayBuffer();
   const { error } = await supabaseAdmin.storage
     .from(bucket)
     .upload(path, new Uint8Array(buf), {
-      contentType: file.type,
+      contentType: TYPE_TO_MIME[detected],
       upsert: false,
     });
   if (error) throw error;
