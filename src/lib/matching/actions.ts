@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth/current-user";
+import { notifyUserTelegram } from "@/lib/admin/notify";
 
 const DAILY_LIMIT = 2;
 const MIN_INTRO_LEN = 0;
@@ -15,6 +16,31 @@ function todayUTC(): string {
 
 function pair(a: string, b: string): { user_a_id: string; user_b_id: string } {
   return a < b ? { user_a_id: a, user_b_id: b } : { user_a_id: b, user_b_id: a };
+}
+
+function appUrl(locale: string, path: string): string {
+  const base = (process.env.APP_URL ?? "https://baxtlilar.vercel.app").replace(/\/$/, "");
+  return `${base}/${locale}${path}`;
+}
+
+async function getNotifyTarget(
+  userId: string,
+): Promise<{ telegram_id: number | null; display_name: string | null; locale: string }> {
+  const { data: u } = await supabaseAdmin
+    .from("users")
+    .select("telegram_id, language")
+    .eq("id", userId)
+    .maybeSingle();
+  const { data: p } = await supabaseAdmin
+    .from("user_profiles")
+    .select("display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+  return {
+    telegram_id: u?.telegram_id ? Number(u.telegram_id) : null,
+    display_name: p?.display_name ?? null,
+    locale: (u?.language as string) ?? "ru",
+  };
 }
 
 /**
@@ -149,6 +175,22 @@ export async function acceptMatchRequest(formData: FormData): Promise<void> {
     .select("id")
     .maybeSingle();
 
+  // notify the original sender that their request was accepted
+  const [sender, acceptor] = await Promise.all([
+    getNotifyTarget(req.sender_id),
+    getNotifyTarget(viewer.id),
+  ]);
+  if (sender.telegram_id) {
+    const who = acceptor.display_name ?? "Кто-то";
+    const link = chat?.id
+      ? appUrl(sender.locale, `/chats/${chat.id}`)
+      : appUrl(sender.locale, "/chats");
+    void notifyUserTelegram(
+      sender.telegram_id,
+      `💌 <b>${who} приняла ваш запрос на знакомство!</b>\n\n<a href="${link}">Открыть чат →</a>`,
+    );
+  }
+
   revalidatePath(`/${locale}/requests`);
   revalidatePath(`/${locale}/chats`);
   if (chat?.id) redirect(`/${locale}/chats/${chat.id}`);
@@ -219,6 +261,35 @@ export async function sendChatMessage(formData: FormData): Promise<void> {
     sender_id: viewer.id,
     body,
   });
+
+  // Notify recipient — but only on the "first unread" to avoid spamming a back-and-forth.
+  // If recipient already has unread messages from us in this chat, they were already pinged.
+  const recipientId = chat.user_a_id === viewer.id ? chat.user_b_id : chat.user_a_id;
+  const { count: unreadFromMe } = await supabaseAdmin
+    .from("chat_messages")
+    .select("id", { count: "exact", head: true })
+    .eq("chat_id", chatId)
+    .eq("sender_id", viewer.id)
+    .is("read_at", null);
+  if ((unreadFromMe ?? 0) <= 1) {
+    const [recipient, sender] = await Promise.all([
+      getNotifyTarget(recipientId),
+      getNotifyTarget(viewer.id),
+    ]);
+    if (recipient.telegram_id) {
+      const who = sender.display_name ?? "Кто-то";
+      const preview = body.length > 80 ? body.slice(0, 80) + "…" : body;
+      const escaped = preview
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      const link = appUrl(recipient.locale, `/chats/${chatId}`);
+      void notifyUserTelegram(
+        recipient.telegram_id,
+        `💬 <b>${who}:</b> ${escaped}\n\n<a href="${link}">Ответить →</a>`,
+      );
+    }
+  }
 
   revalidatePath(`/${locale}/chats/${chatId}`);
   redirect(`/${locale}/chats/${chatId}`);

@@ -35,33 +35,62 @@ export default async function MainPage({
 
   const isPaused = user.lifecycle_state === "paused";
 
-  // Fetch in parallel: header data, quota, recommendations, signed url
-  const [{ data: u }, { data: profile }, { data: mainPhoto }, quotaResp, recs] =
-    await Promise.all([
-      supabaseAdmin
-        .from("users")
-        .select("telegram_first_name")
-        .eq("id", user.id)
-        .single(),
-      supabaseAdmin
-        .from("user_profiles")
-        .select("display_name, city")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("profile_photos")
-        .select("storage_path")
-        .eq("user_id", user.id)
-        .eq("is_main", true)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("daily_request_quotas")
-        .select("sent_count")
-        .eq("user_id", user.id)
-        .eq("quota_date", todayUTC())
-        .maybeSingle(),
-      isPaused ? Promise.resolve([]) : recommendFor(user.id, 10),
-    ]);
+  // Fetch in parallel: header data, quota, recommendations, signed url, badges
+  const [
+    { data: u },
+    { data: profile },
+    { data: mainPhoto },
+    quotaResp,
+    recs,
+    pendingResp,
+    chatsResp,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("users")
+      .select("telegram_first_name")
+      .eq("id", user.id)
+      .single(),
+    supabaseAdmin
+      .from("user_profiles")
+      .select("display_name, city")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("profile_photos")
+      .select("storage_path")
+      .eq("user_id", user.id)
+      .eq("is_main", true)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("daily_request_quotas")
+      .select("sent_count")
+      .eq("user_id", user.id)
+      .eq("quota_date", todayUTC())
+      .maybeSingle(),
+    isPaused ? Promise.resolve([]) : recommendFor(user.id, 10),
+    supabaseAdmin
+      .from("match_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("receiver_id", user.id)
+      .eq("status", "pending"),
+    supabaseAdmin
+      .from("chats")
+      .select("id")
+      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`),
+  ]);
+
+  const pendingCount = pendingResp.count ?? 0;
+  let unreadChats = 0;
+  const chatIds = (chatsResp.data ?? []).map((c) => c.id);
+  if (chatIds.length > 0) {
+    const { data: unreadRows } = await supabaseAdmin
+      .from("chat_messages")
+      .select("chat_id")
+      .in("chat_id", chatIds)
+      .neq("sender_id", user.id)
+      .is("read_at", null);
+    unreadChats = new Set((unreadRows ?? []).map((r) => r.chat_id)).size;
+  }
 
   const sentToday = quotaResp?.data?.sent_count ?? 0;
   const remaining = Math.max(0, DAILY_LIMIT - sentToday);
@@ -204,7 +233,11 @@ export default async function MainPage({
           )}
         </section>
 
-        <BottomNav locale={locale} active="main" />
+        <BottomNav
+          locale={locale}
+          active="main"
+          badges={{ requests: pendingCount, chats: unreadChats }}
+        />
       </ScreenBody>
     </Screen>
   );
