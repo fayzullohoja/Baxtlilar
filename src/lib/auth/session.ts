@@ -15,9 +15,15 @@ function sign(data: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(data).digest("base64url");
 }
 
-function getSecret(): string {
+function getSecretOrNull(): string | null {
   const s = process.env.SESSION_SECRET;
-  if (!s || s.length < 32) throw new Error("SESSION_SECRET must be at least 32 chars");
+  if (!s || s.length < 32) return null;
+  return s;
+}
+
+function getSecret(): string {
+  const s = getSecretOrNull();
+  if (!s) throw new Error("SESSION_SECRET must be at least 32 chars");
   return s;
 }
 
@@ -35,7 +41,12 @@ export function encodeSession(userId: string): string {
 export function decodeSession(token: string): Payload | null {
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
-  if (sign(body, getSecret()) !== sig) return null;
+  // If SESSION_SECRET is missing or too short, treat any cookie as invalid
+  // rather than crashing the request (was throwing → 500 + error.tsx page).
+  // Production must always have a strong secret; this is a defensive guard.
+  const secret = getSecretOrNull();
+  if (!secret) return null;
+  if (sign(body, secret) !== sig) return null;
   try {
     const p = JSON.parse(Buffer.from(body, "base64url").toString()) as Payload;
     if (p.exp < Math.floor(Date.now() / 1000)) return null;
@@ -62,10 +73,15 @@ export async function clearSessionCookie() {
 }
 
 export async function getSessionUserId(): Promise<string | null> {
-  const store = await cookies();
-  const tok = store.get(COOKIE_NAME)?.value;
-  if (!tok) return null;
-  return decodeSession(tok)?.user_id ?? null;
+  try {
+    const store = await cookies();
+    const tok = store.get(COOKIE_NAME)?.value;
+    if (!tok) return null;
+    return decodeSession(tok)?.user_id ?? null;
+  } catch {
+    // Any cookie / decode failure → treat as no session, don't crash the page
+    return null;
+  }
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;
