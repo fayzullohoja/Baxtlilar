@@ -96,6 +96,33 @@ export default function GlobalError({
             ref: {error.digest}
           </p>
         ) : null}
+        {error.message ? (
+          <details
+            style={{
+              marginTop: "12px",
+              fontSize: "11px",
+              fontFamily: "monospace",
+              color: "var(--color-ink-muted, #9b8c90)",
+              textAlign: "left",
+            }}
+          >
+            <summary style={{ cursor: "pointer" }}>Подробности</summary>
+            <pre
+              style={{
+                marginTop: "8px",
+                padding: "8px",
+                backgroundColor: "rgba(0,0,0,0.04)",
+                borderRadius: "8px",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                maxHeight: "200px",
+                overflow: "auto",
+              }}
+            >
+              {error.message}
+            </pre>
+          </details>
+        ) : null}
       </div>
     </div>
   );
