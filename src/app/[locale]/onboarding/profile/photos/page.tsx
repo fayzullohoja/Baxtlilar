@@ -149,7 +149,7 @@ export default async function PhotosPage({
             <PhotoSlot
               previewUrl={mainUrl}
               uploadAction={uploadMain}
-              removeAction={main ? (fd) => removePhoto(fd) : null}
+              removeAction={main ? removePhoto : null}
               photoId={main?.id ?? null}
               labels={{
                 pick: tDoc("pick"),
