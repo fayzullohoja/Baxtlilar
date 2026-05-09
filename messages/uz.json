@@ -13,6 +13,12 @@
     "yes": "Ha",
     "no": "Yo‘q"
   },
+  "nav": {
+    "feed": "Tasma",
+    "requests": "So‘rovlar",
+    "chats": "Chatlar",
+    "profile": "Profil"
+  },
   "welcome": {
     "title": "Bakhtlilar",
     "subtitle": "Oila qurish uchun xavfsiz va jiddiy tanishuvlar",
@@ -180,7 +186,20 @@
   "main": {
     "greeting": "Salom, {name}",
     "limit": "Bugun mavjud: {count} ta tanishuv so‘rovi",
-    "todo": "Asosiy — joker. Keyin: tavsiyalar, so‘rovlar, chatlar, profil."
+    "todo": "Asosiy — joker. Keyin: tavsiyalar, so‘rovlar, chatlar, profil.",
+    "recommendations_today": "Bugungi tavsiyalar",
+    "no_candidates_title": "Hozircha mos nomzodlar yo‘q",
+    "no_candidates_text": "Biz qidirishni davom ettirmoqdamiz. Keyinroq qaytib keling — yangi tasdiqlangan foydalanuvchilar paydo bo‘lishi bilan ro‘yxat yangilanadi.",
+    "paused_notice": "Hisobingiz to‘xtatilgan. Tavsiyalar olish uchun sozlamalardan davom ettiring.",
+    "settings_aria": "Sozlamalar",
+    "error_quota": "Bugungi so‘rovlar limiti tugadi. Ertaga qaytib keling.",
+    "error_not_active": "Hisobingiz hali faollashtirilmagan.",
+    "error_target_inactive": "Bu foydalanuvchi hozir mavjud emas.",
+    "error_not_found": "Foydalanuvchi topilmadi.",
+    "error_generic": "Nimadir noto‘g‘ri ketdi.",
+    "info_sent": "So‘rov yuborildi.",
+    "info_declined": "So‘rov rad etildi.",
+    "info_withdrawn": "So‘rov qaytarib olindi."
   },
   "blocked": {
     "title": "Akkaunt cheklangan",

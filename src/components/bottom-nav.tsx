@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 export type NavTab = "main" | "requests" | "chats" | "settings";
 
-export function BottomNav({
+export async function BottomNav({
   locale,
   active,
   badges,
@@ -11,11 +12,12 @@ export function BottomNav({
   active: NavTab;
   badges?: Partial<Record<NavTab, number>>;
 }) {
+  const t = await getTranslations({ locale, namespace: "nav" });
   const items: Array<{ key: NavTab; href: string; label: string; icon: string }> = [
-    { key: "main", href: `/${locale}/main`, label: "Лента", icon: "🌸" },
-    { key: "requests", href: `/${locale}/requests`, label: "Заявки", icon: "✉️" },
-    { key: "chats", href: `/${locale}/chats`, label: "Чаты", icon: "💬" },
-    { key: "settings", href: `/${locale}/settings`, label: "Профиль", icon: "👤" },
+    { key: "main", href: `/${locale}/main`, label: t("feed"), icon: "🌸" },
+    { key: "requests", href: `/${locale}/requests`, label: t("requests"), icon: "✉️" },
+    { key: "chats", href: `/${locale}/chats`, label: t("chats"), icon: "💬" },
+    { key: "settings", href: `/${locale}/settings`, label: t("profile"), icon: "👤" },
   ];
   return (
     <nav

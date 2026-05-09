@@ -110,7 +110,12 @@ export default async function MainPage({
   return (
     <Screen>
       <ScreenBody>
-        {sp.error || sp.info ? <FlashBanner error={sp.error} info={sp.info} /> : null}
+        {sp.error || sp.info ? (
+          <FlashBanner
+            isError={!!sp.error}
+            text={resolveFlash(t, sp.error, sp.info)}
+          />
+        ) : null}
 
         <header className="mt-2 overflow-hidden rounded-3xl bg-white shadow-[0_4px_16px_rgba(74,44,53,0.06)]">
           {photoUrl ? (
@@ -143,7 +148,7 @@ export default async function MainPage({
             <Link
               href={`/${locale}/settings`}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[--color-plum-mute] transition hover:bg-[--color-blush] hover:text-[--color-brand-deep]"
-              aria-label="Настройки"
+              aria-label={t("settings_aria")}
             >
               <svg className="h-5 w-5" viewBox="0 0 20 20" fill="none">
                 <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
@@ -162,13 +167,13 @@ export default async function MainPage({
               color: "var(--color-warn)",
             }}
           >
-            Ваш аккаунт на паузе. Возобновите в настройках, чтобы получать рекомендации.
+            {t("paused_notice")}
           </div>
         ) : null}
 
         <section className="mt-5">
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[--color-ink-muted]">
-            Рекомендации на сегодня
+            {t("recommendations_today")}
           </h2>
 
           {recsWithUrls.length === 0 ? (
@@ -184,10 +189,10 @@ export default async function MainPage({
                 🌸
               </div>
               <h3 className="text-base font-semibold text-[--color-plum]">
-                Пока нет подходящих кандидатов
+                {t("no_candidates_title")}
               </h3>
               <p className="mt-2 text-sm text-[--color-ink-2]">
-                Мы продолжаем искать. Загляните позже — список обновляется по мере регистрации новых верифицированных пользователей.
+                {t("no_candidates_text")}
               </p>
             </div>
           ) : (
@@ -243,21 +248,15 @@ export default async function MainPage({
   );
 }
 
-function FlashBanner({ error, info }: { error?: string; info?: string }) {
-  const text = error
-    ? errorText(error)
-    : info
-      ? infoText(info)
-      : null;
+function FlashBanner({ isError, text }: { isError: boolean; text: string }) {
   if (!text) return null;
-  const isErr = !!error;
   return (
     <div
       className="mt-2 rounded-2xl border px-4 py-3 text-sm"
       style={{
-        borderColor: isErr ? "var(--color-warn)" : "var(--color-success)",
-        backgroundColor: isErr ? "var(--color-warn-bg)" : "var(--color-success-bg)",
-        color: isErr ? "var(--color-warn)" : "var(--color-success)",
+        borderColor: isError ? "var(--color-warn)" : "var(--color-success)",
+        backgroundColor: isError ? "var(--color-warn-bg)" : "var(--color-success-bg)",
+        color: isError ? "var(--color-warn)" : "var(--color-success)",
       }}
     >
       {text}
@@ -265,30 +264,21 @@ function FlashBanner({ error, info }: { error?: string; info?: string }) {
   );
 }
 
-function errorText(code: string): string {
-  switch (code) {
-    case "quota":
-      return "На сегодня вы исчерпали лимит запросов. Возвращайтесь завтра.";
-    case "not_active":
-      return "Ваш аккаунт ещё не активирован.";
-    case "target_inactive":
-      return "Этот пользователь сейчас недоступен.";
-    case "not_found":
-      return "Пользователь не найден.";
-    default:
-      return "Что-то пошло не так.";
+const ERROR_CODES = ["quota", "not_active", "target_inactive", "not_found"] as const;
+const INFO_CODES = ["sent", "declined", "withdrawn"] as const;
+
+function resolveFlash(
+  t: (key: string) => string,
+  error?: string,
+  info?: string,
+): string {
+  if (error) {
+    const code = (ERROR_CODES as readonly string[]).includes(error) ? error : "generic";
+    return t(`error_${code}`);
   }
-}
-function infoText(code: string): string {
-  switch (code) {
-    case "sent":
-      return "Запрос отправлен.";
-    case "declined":
-      return "Запрос отклонён.";
-    case "withdrawn":
-      return "Запрос отозван.";
-    default:
-      return "";
+  if (info && (INFO_CODES as readonly string[]).includes(info)) {
+    return t(`info_${info}`);
   }
+  return "";
 }
 
