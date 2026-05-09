@@ -152,7 +152,7 @@ d("uploads (real Supabase Storage)", () => {
     await expect(uploadPassport(userId, big)).rejects.toThrow(/File too large/);
   });
 
-  it("uploadProfilePhoto: main flag toggles + signed URL works + delete cleans up", async () => {
+  it("uploadProfilePhoto: replace-in-place + signed URL works + delete cleans up", async () => {
     const { uploadProfilePhoto, deletePhoto, getSignedPhotoUrl } = await import(
       "../uploads/photos"
     );
@@ -168,35 +168,65 @@ d("uploads (real Supabase Storage)", () => {
     expect(rows1).toHaveLength(1);
     expect(rows1?.[0]?.is_main).toBe(true);
 
-    // upload second as main → first must flip to is_main=false
+    // upload second as main → old main DELETED (storage + row), not flipped
     await uploadProfilePhoto(userId, fakeJpeg(), true, 0);
     const { data: rows2 } = await supa
       .from("profile_photos")
       .select("id, is_main, storage_path")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true });
-    expect(rows2).toHaveLength(2);
-    const mains = rows2?.filter((r) => r.is_main) ?? [];
-    expect(mains).toHaveLength(1);
-    // newest is the new main
-    expect(mains[0].id).toBe(rows2![1].id);
+      .eq("user_id", userId);
+    expect(rows2).toHaveLength(1); // only the new main remains
+    expect(rows2?.[0]?.is_main).toBe(true);
+    expect(rows2?.[0]?.id).not.toBe(rows1?.[0]?.id);
 
-    // signed URL renders
+    // old storage file should be gone
+    const { data: gone1 } = await supa.storage
+      .from("profile-photos")
+      .download(rows1![0].storage_path);
+    expect(gone1).toBeNull();
+
+    // signed URL renders for the new main
     const url = await getSignedPhotoUrl(rows2![0].storage_path);
     expect(url).toContain("/object/sign/profile-photos/");
 
-    // delete cleans up storage + DB
+    // explicit delete cleans up storage + DB
     const toDelete = rows2![0];
     await deletePhoto(userId, toDelete.id);
     const { data: rows3 } = await supa
       .from("profile_photos")
       .select("id")
       .eq("user_id", userId);
-    expect(rows3).toHaveLength(1);
-    const { data: gone } = await supa.storage
+    expect(rows3).toHaveLength(0);
+    const { data: gone2 } = await supa.storage
       .from("profile-photos")
       .download(toDelete.storage_path);
-    expect(gone).toBeNull();
+    expect(gone2).toBeNull();
+  });
+
+  it("uploadProfilePhoto: extra at same position replaces old", async () => {
+    const { uploadProfilePhoto } = await import("../uploads/photos");
+
+    // need a main first (otherwise this is just "first photo as extra")
+    await uploadProfilePhoto(userId, fakeJpeg(), true, 0);
+
+    const path1 = await uploadProfilePhoto(userId, fakeJpeg(), false, 1);
+    const { data: r1 } = await supa
+      .from("profile_photos")
+      .select("id, position, storage_path")
+      .eq("user_id", userId)
+      .eq("position", 1);
+    expect(r1).toHaveLength(1);
+    expect(r1?.[0]?.storage_path).toBe(path1);
+
+    // re-upload at position 1 → old extra at position 1 deleted
+    const path2 = await uploadProfilePhoto(userId, fakeJpeg(), false, 1);
+    const { data: r2 } = await supa
+      .from("profile_photos")
+      .select("id, storage_path")
+      .eq("user_id", userId)
+      .eq("position", 1);
+    expect(r2).toHaveLength(1);
+    expect(r2?.[0]?.storage_path).toBe(path2);
+    expect(r2?.[0]?.storage_path).not.toBe(path1);
   });
 
   it("uploadProfilePhoto: rejects > 5MB (photos bucket smaller than docs)", async () => {

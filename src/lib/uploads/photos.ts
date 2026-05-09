@@ -29,7 +29,40 @@ export async function uploadProfilePhoto(
   const detected = await detectImageType(file);
   if (!detected) throw new Error("Unsupported file type");
 
-  // Enforce photo count: at most 1 main + N extras
+  // Replace-in-place: if uploading a new MAIN, the old main is deleted entirely
+  // (storage + DB row) so it doesn't accumulate as an "extra". Same for extras
+  // at a specific position — old row at that position is removed before insert.
+  // Without this, replaced photos became orphan storage objects forever.
+  let displaced;
+  if (isMain) {
+    ({ data: displaced } = await supabaseAdmin
+      .from("profile_photos")
+      .select("id, storage_path")
+      .eq("user_id", userId)
+      .eq("is_main", true));
+  } else {
+    ({ data: displaced } = await supabaseAdmin
+      .from("profile_photos")
+      .select("id, storage_path")
+      .eq("user_id", userId)
+      .eq("position", position)
+      .eq("is_main", false));
+  }
+  if (displaced && displaced.length > 0) {
+    await supabaseAdmin.storage
+      .from("profile-photos")
+      .remove(displaced.map((d) => d.storage_path))
+      .catch(() => {});
+    await supabaseAdmin
+      .from("profile_photos")
+      .delete()
+      .in(
+        "id",
+        displaced.map((d) => d.id),
+      );
+  }
+
+  // Enforce photo count: at most N extras (after the displacement above).
   if (!isMain) {
     const { count } = await supabaseAdmin
       .from("profile_photos")
@@ -40,6 +73,7 @@ export async function uploadProfilePhoto(
       throw new Error("Photo limit reached");
     }
   }
+
   const path = `${userId}/${isMain ? "main" : `extra-${position}`}-${Date.now()}.${TYPE_TO_EXT[detected]}`;
   const buf = await file.arrayBuffer();
   const { error } = await supabaseAdmin.storage
@@ -49,13 +83,6 @@ export async function uploadProfilePhoto(
       upsert: false,
     });
   if (error) throw error;
-
-  if (isMain) {
-    await supabaseAdmin
-      .from("profile_photos")
-      .update({ is_main: false })
-      .eq("user_id", userId);
-  }
 
   await supabaseAdmin.from("profile_photos").insert({
     user_id: userId,
