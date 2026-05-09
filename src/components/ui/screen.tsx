@@ -32,8 +32,14 @@ export function ScreenHeader({
   );
 }
 
-export function ScreenBody({ children }: { children: ReactNode }) {
-  return <div className="flex-1">{children}</div>;
+export function ScreenBody({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={`flex-1 ${className}`}>{children}</div>;
 }
 
 export function ScreenFooter({ children }: { children: ReactNode }) {
